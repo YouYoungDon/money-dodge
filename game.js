@@ -29,9 +29,9 @@ const keys = {
 
 const player = {
   x: WIDTH / 2,
-  y: HEIGHT - 76,
-  width: 58,
-  height: 64,
+  y: HEIGHT - 70,
+  width: 44,
+  height: 54,
   speed: 430,
 };
 
@@ -913,59 +913,73 @@ function drawPlayer() {
   const speedRatio = clamp(Math.abs(playerVelocityX) / 640, 0, 1);
   const visualDirection =
     speedRatio > 0.05 ? Math.sign(playerVelocityX) : lastMoveDirection || 1;
-  const stride = Math.sin(walkPhase) * 16 * speedRatio;
-  const lift = Math.abs(Math.cos(walkPhase)) * 5 * speedRatio;
-  const hipX = visualDirection * 3 * speedRatio;
-  const shoulderX = visualDirection * 5 * speedRatio;
-  const lean = visualDirection * 0.08 * speedRatio;
-  const leftFootX = -17 + visualDirection * stride;
-  const rightFootX = 17 - visualDirection * stride;
-  const leftFootY = 38 - (stride > 0 ? lift : 0);
-  const rightFootY = 38 - (stride < 0 ? lift : 0);
-  const armSwing = stride * 0.65;
+  const stride = Math.sin(walkPhase) * 12 * speedRatio;
+  const lift = Math.abs(Math.cos(walkPhase)) * 4 * speedRatio;
+  const hipX = visualDirection * 2.4 * speedRatio;
+  const shoulderX = visualDirection * 3.6 * speedRatio;
+  const lean = visualDirection * 0.06 * speedRatio;
+  const leftFootX = -13 + visualDirection * stride;
+  const rightFootX = 13 - visualDirection * stride;
+  const leftFootY = 32 - (stride > 0 ? lift : 0);
+  const rightFootY = 32 - (stride < 0 ? lift : 0);
+  const armSwing = stride * 0.55;
 
   if (isInvincible()) {
     ctx.strokeStyle = "rgba(37, 99, 235, 0.78)";
-    ctx.lineWidth = 5;
+    ctx.lineWidth = 4;
     ctx.beginPath();
-    ctx.ellipse(0, -4, 40, 58, 0, 0, Math.PI * 2);
+    ctx.ellipse(0, -3, 31, 48, 0, 0, Math.PI * 2);
     ctx.stroke();
   }
 
   ctx.fillStyle = "rgba(0, 0, 0, 0.16)";
   ctx.beginPath();
-  ctx.ellipse(0, 40, 30, 8, 0, 0, Math.PI * 2);
+  ctx.ellipse(0, 34, 23, 7, 0, 0, Math.PI * 2);
   ctx.fill();
 
-  ctx.strokeStyle = "#111111";
-  ctx.fillStyle = "#111111";
-  ctx.lineWidth = 6;
+  ctx.strokeStyle = "#30343b";
+  ctx.fillStyle = "#30343b";
+  ctx.lineWidth = 4;
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
   ctx.rotate(lean);
 
   ctx.beginPath();
-  ctx.arc(0, -38, 14, 0, Math.PI * 2);
+  ctx.fillStyle = "#fff0d7";
+  ctx.arc(0, -31, 11, 0, Math.PI * 2);
   ctx.fill();
+  ctx.stroke();
 
   ctx.beginPath();
-  ctx.moveTo(0, -22);
-  ctx.lineTo(hipX, 13);
-  ctx.moveTo(shoulderX, -8);
-  ctx.lineTo(-22 - visualDirection * armSwing, 2 + speedRatio * 2);
-  ctx.moveTo(shoulderX, -8);
-  ctx.lineTo(22 + visualDirection * armSwing, 2 - speedRatio * 2);
-  ctx.moveTo(hipX, 13);
+  ctx.moveTo(0, -18);
+  ctx.lineTo(hipX, 9);
+  ctx.moveTo(shoulderX, -7);
+  ctx.lineTo(-17 - visualDirection * armSwing, 1 + speedRatio * 2);
+  ctx.moveTo(shoulderX, -7);
+  ctx.lineTo(17 + visualDirection * armSwing, 1 - speedRatio * 2);
+  ctx.moveTo(hipX, 9);
   ctx.lineTo(leftFootX, leftFootY);
-  ctx.moveTo(hipX, 13);
+  ctx.moveTo(hipX, 9);
   ctx.lineTo(rightFootX, rightFootY);
   ctx.stroke();
 
-  ctx.strokeStyle = "#ffffff";
-  ctx.lineWidth = 2;
+  ctx.fillStyle = "#30343b";
   ctx.beginPath();
-  ctx.arc(0, -38, 7, 0.15 * Math.PI, 0.85 * Math.PI);
+  ctx.arc(-4, -33, 1.7, 0, Math.PI * 2);
+  ctx.arc(4, -33, 1.7, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.strokeStyle = "#30343b";
+  ctx.lineWidth = 1.7;
+  ctx.beginPath();
+  ctx.arc(0, -30, 4.4, 0.18 * Math.PI, 0.82 * Math.PI);
   ctx.stroke();
+
+  ctx.fillStyle = "rgba(255, 156, 181, 0.75)";
+  ctx.beginPath();
+  ctx.arc(-7, -30, 2.1, 0, Math.PI * 2);
+  ctx.arc(7, -30, 2.1, 0, Math.PI * 2);
+  ctx.fill();
 
   ctx.restore();
 }
