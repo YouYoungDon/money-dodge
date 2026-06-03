@@ -22,7 +22,6 @@ const DASH_SPEED = 1180;
 const DASH_DURATION = 0.16;
 const DASH_COOLDOWN = 1.45;
 const STARTING_DASH_CHARGES = 5;
-const MAX_DASH_CHARGES = 9;
 
 const keys = {
   left: false,
@@ -722,7 +721,7 @@ function collectPickup(object) {
     saveModeUntil = Math.max(saveModeUntil, elapsed + object.type.duration);
     addPopup("+절약모드", object.x, object.y, "#3f8fea");
   } else if (object.type.id === "dash") {
-    dashCharges = Math.min(MAX_DASH_CHARGES, dashCharges + 1);
+    dashCharges += 1;
     addPopup("+대시 1", object.x, object.y, "#2563eb");
   } else if (object.type.id === "salary") {
     salarySurgeUntil = Math.max(salarySurgeUntil, elapsed + object.type.duration);
