@@ -515,6 +515,8 @@ function spawnEntity(type, options = {}) {
     sway: options.sway ?? defaultSway,
     phase: Math.random() * Math.PI * 2,
     bounced: false,
+    grounded: false,
+    expireAt: null,
     nearMissed: false,
     collected: false,
   });
@@ -657,13 +659,22 @@ function updateObjects(dt) {
     object.x += Math.sin(elapsed * 3.2 + object.phase) * object.sway * dt;
     object.x = clamp(object.x, object.size * 0.38, WIDTH - object.size * 0.38);
 
-    if (object.type.id === "delivery" && !object.bounced && object.y > HEIGHT - 42) {
-      object.bounced = true;
+    if (object.type.id === "delivery" && object.y > HEIGHT - 42) {
       object.y = HEIGHT - 42;
-      object.speed = -Math.abs(object.speed) * 0.48;
-      object.spin *= -1.3;
-      addPopup("통!", object.x, object.y - 34, "#ff8b5f");
-      playTone(210, 0.07, "square", 0.025);
+      object.grounded = true;
+
+      if (!object.bounced) {
+        object.bounced = true;
+        object.expireAt = elapsed + 1;
+        object.speed = -Math.abs(object.speed) * 0.36;
+        object.spin *= -1.3;
+        addPopup("통!", object.x, object.y - 34, "#ff8b5f");
+        playTone(210, 0.07, "square", 0.025);
+      } else {
+        object.speed = 0;
+        object.spin = 0;
+        object.sway = 0;
+      }
     }
   }
 }
@@ -746,7 +757,12 @@ function checkCollisions() {
     }
   }
 
-  objects = objects.filter((object) => !object.collected && object.y < HEIGHT + object.size);
+  objects = objects.filter(
+    (object) =>
+      !object.collected &&
+      (object.expireAt === null || elapsed < object.expireAt) &&
+      object.y < HEIGHT + object.size,
+  );
 }
 
 function maybeAwardNearMiss(object) {
@@ -782,6 +798,10 @@ function getObjectHitScale(object) {
 }
 
 function hasCollision(object) {
+  if (object.grounded) {
+    return false;
+  }
+
   const playerHitbox = {
     x: player.x - player.width * 0.34,
     y: player.y - player.height * 0.44,
@@ -954,6 +974,9 @@ function drawObject(object) {
   ctx.save();
   ctx.translate(object.x, object.y);
   ctx.rotate(object.rotation);
+  if (object.expireAt !== null) {
+    ctx.globalAlpha = clamp(object.expireAt - elapsed, 0, 1);
+  }
 
   if (object.type.kind !== "pickup" && isSaveMode()) {
     ctx.scale(0.85, 0.85);
