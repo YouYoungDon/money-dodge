@@ -220,6 +220,8 @@ let dashUntil = 0;
 let dashCooldownUntil = 0;
 let dashDirection = 1;
 let audioContext = null;
+let playerVelocityX = 0;
+let walkPhase = 0;
 
 function formatSeconds(seconds) {
   return `${seconds.toFixed(1)}초`;
@@ -235,6 +237,16 @@ function clampPlayerX(x) {
 
 function setPlayerX(x) {
   player.x = clampPlayerX(x);
+}
+
+function recordPlayerMovement(deltaX, dt = 1 / 60) {
+  if (Math.abs(deltaX) < 0.1) {
+    playerVelocityX *= 0.84;
+    return;
+  }
+
+  playerVelocityX = deltaX / Math.max(dt, 1 / 120);
+  walkPhase += Math.min(Math.abs(deltaX) * 0.18, 0.95);
 }
 
 function isInvincible() {
@@ -274,7 +286,9 @@ function movePlayerToPointer(event) {
   dragTargetX = clampPlayerX(nextX);
 
   if (!isSlippery()) {
+    const beforeX = player.x;
     setPlayerX(dragTargetX);
+    recordPlayerMovement(player.x - beforeX);
   }
 }
 
@@ -398,6 +412,8 @@ function resetGame() {
   dashUntil = 0;
   dashCooldownUntil = 0;
   dashDirection = 1;
+  playerVelocityX = 0;
+  walkPhase = 0;
   setPlayerX(WIDTH / 2);
   updateScoreUi();
   hideOverlay();
@@ -604,6 +620,7 @@ function triggerDash() {
 }
 
 function updatePlayer(dt) {
+  const beforeX = player.x;
   const direction = Number(keys.right) - Number(keys.left);
 
   if (direction !== 0) {
@@ -622,6 +639,8 @@ function updatePlayer(dt) {
   if (elapsed < dashUntil) {
     setPlayerX(player.x + dashDirection * DASH_SPEED * dt);
   }
+
+  recordPlayerMovement(player.x - beforeX, dt);
 }
 
 function updateObjects(dt) {
@@ -867,109 +886,23 @@ function drawStatusChips() {
   }
 }
 
-function drawOtterPlayer() {
-  ctx.save();
-  ctx.translate(player.x, player.y);
-
-  if (isInvincible()) {
-    ctx.strokeStyle = "rgba(118, 183, 255, 0.82)";
-    ctx.lineWidth = 5;
-    ctx.beginPath();
-    ctx.ellipse(0, -2, 42, 58, 0, 0, Math.PI * 2);
-    ctx.stroke();
-  }
-
-  ctx.fillStyle = "rgba(40, 48, 63, 0.14)";
-  ctx.beginPath();
-  ctx.ellipse(0, 40, 34, 9, 0, 0, Math.PI * 2);
-  ctx.fill();
-
-  ctx.fillStyle = "#7a4b32";
-  ctx.save();
-  ctx.translate(-30, 17);
-  ctx.rotate(-0.48);
-  ctx.beginPath();
-  ctx.ellipse(0, 0, 14, 42, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.restore();
-
-  ctx.fillStyle = "#9a6542";
-  roundRect(-25, -8, 50, 50, 18);
-  ctx.fill();
-
-  ctx.fillStyle = "#f6d8a8";
-  ctx.beginPath();
-  ctx.ellipse(0, 18, 17, 22, 0, 0, Math.PI * 2);
-  ctx.fill();
-
-  ctx.fillStyle = "#7a4b32";
-  ctx.beginPath();
-  ctx.arc(-18, -43, 9, 0, Math.PI * 2);
-  ctx.arc(18, -43, 9, 0, Math.PI * 2);
-  ctx.fill();
-
-  ctx.fillStyle = "#9a6542";
-  ctx.beginPath();
-  ctx.arc(0, -28, 26, 0, Math.PI * 2);
-  ctx.fill();
-
-  ctx.fillStyle = "#f6d8a8";
-  ctx.beginPath();
-  ctx.ellipse(-8, -22, 10, 9, -0.12, 0, Math.PI * 2);
-  ctx.ellipse(8, -22, 10, 9, 0.12, 0, Math.PI * 2);
-  ctx.fill();
-
-  ctx.fillStyle = "#3b3142";
-  ctx.beginPath();
-  ctx.arc(-9, -32, 3.2, 0, Math.PI * 2);
-  ctx.arc(9, -32, 3.2, 0, Math.PI * 2);
-  ctx.fill();
-
-  ctx.fillStyle = "#2d2230";
-  ctx.beginPath();
-  ctx.ellipse(0, -24, 5, 3.8, 0, 0, Math.PI * 2);
-  ctx.fill();
-
-  ctx.strokeStyle = "#3b3142";
-  ctx.lineWidth = 2;
-  ctx.lineCap = "round";
-  ctx.beginPath();
-  ctx.moveTo(-7, -20);
-  ctx.lineTo(-22, -23);
-  ctx.moveTo(-7, -18);
-  ctx.lineTo(-23, -17);
-  ctx.moveTo(7, -20);
-  ctx.lineTo(22, -23);
-  ctx.moveTo(7, -18);
-  ctx.lineTo(23, -17);
-  ctx.stroke();
-
-  ctx.lineWidth = 2.4;
-  ctx.beginPath();
-  ctx.arc(0, -21, 8, 0.18 * Math.PI, 0.82 * Math.PI);
-  ctx.stroke();
-
-  ctx.fillStyle = "#7a4b32";
-  ctx.beginPath();
-  ctx.arc(-21, 6, 8, 0, Math.PI * 2);
-  ctx.arc(21, 6, 8, 0, Math.PI * 2);
-  ctx.fill();
-
-  ctx.fillStyle = "#ffd36f";
-  roundRect(-18, 9, 36, 25, 9);
-  ctx.fill();
-  ctx.fillStyle = "#3b3142";
-  ctx.font = "900 12px sans-serif";
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillText("저축", 0, 21);
-
-  ctx.restore();
-}
-
 function drawPlayer() {
   ctx.save();
   ctx.translate(player.x, player.y);
+
+  const speedRatio = clamp(Math.abs(playerVelocityX) / 640, 0, 1);
+  const visualDirection =
+    speedRatio > 0.05 ? Math.sign(playerVelocityX) : lastMoveDirection || 1;
+  const stride = Math.sin(walkPhase) * 16 * speedRatio;
+  const lift = Math.abs(Math.cos(walkPhase)) * 5 * speedRatio;
+  const hipX = visualDirection * 3 * speedRatio;
+  const shoulderX = visualDirection * 5 * speedRatio;
+  const lean = visualDirection * 0.08 * speedRatio;
+  const leftFootX = -17 + visualDirection * stride;
+  const rightFootX = 17 - visualDirection * stride;
+  const leftFootY = 38 - (stride > 0 ? lift : 0);
+  const rightFootY = 38 - (stride < 0 ? lift : 0);
+  const armSwing = stride * 0.65;
 
   if (isInvincible()) {
     ctx.strokeStyle = "rgba(37, 99, 235, 0.78)";
@@ -989,6 +922,7 @@ function drawPlayer() {
   ctx.lineWidth = 6;
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
+  ctx.rotate(lean);
 
   ctx.beginPath();
   ctx.arc(0, -38, 14, 0, Math.PI * 2);
@@ -996,15 +930,15 @@ function drawPlayer() {
 
   ctx.beginPath();
   ctx.moveTo(0, -22);
-  ctx.lineTo(0, 13);
-  ctx.moveTo(0, -8);
-  ctx.lineTo(-22, 2);
-  ctx.moveTo(0, -8);
-  ctx.lineTo(22, 2);
-  ctx.moveTo(0, 13);
-  ctx.lineTo(-18, 38);
-  ctx.moveTo(0, 13);
-  ctx.lineTo(18, 38);
+  ctx.lineTo(hipX, 13);
+  ctx.moveTo(shoulderX, -8);
+  ctx.lineTo(-22 - visualDirection * armSwing, 2 + speedRatio * 2);
+  ctx.moveTo(shoulderX, -8);
+  ctx.lineTo(22 + visualDirection * armSwing, 2 - speedRatio * 2);
+  ctx.moveTo(hipX, 13);
+  ctx.lineTo(leftFootX, leftFootY);
+  ctx.moveTo(hipX, 13);
+  ctx.lineTo(rightFootX, rightFootY);
   ctx.stroke();
 
   ctx.strokeStyle = "#ffffff";
