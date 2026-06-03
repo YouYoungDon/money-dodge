@@ -219,6 +219,7 @@ let emergencyCharges = 0;
 let dashUntil = 0;
 let dashCooldownUntil = 0;
 let dashDirection = 1;
+let audioContext = null;
 
 function formatSeconds(seconds) {
   return `${seconds.toFixed(1)}초`;
@@ -373,6 +374,7 @@ function hideOverlay() {
 }
 
 function resetGame() {
+  primeAudio();
   state = "playing";
   lastTime = 0;
   elapsed = 0;
@@ -405,6 +407,7 @@ function resetGame() {
 function finishGame(label) {
   state = "gameover";
   lastCollisionLabel = label;
+  playTone(132, 0.18, "sawtooth", 0.05);
   lastRunWasRecord = elapsed > bestScore;
   if (lastRunWasRecord) {
     bestScore = elapsed;
@@ -423,6 +426,37 @@ function addPopup(text, x, y, color = "#28303f") {
     life: 0.9,
     maxLife: 0.9,
   });
+}
+
+function primeAudio() {
+  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContextClass) {
+    return null;
+  }
+
+  audioContext = audioContext || new AudioContextClass();
+  if (audioContext.state === "suspended") {
+    audioContext.resume();
+  }
+  return audioContext;
+}
+
+function playTone(frequency, duration = 0.08, type = "sine", volume = 0.035) {
+  const audio = primeAudio();
+  if (!audio) {
+    return;
+  }
+
+  const oscillator = audio.createOscillator();
+  const gain = audio.createGain();
+  oscillator.type = type;
+  oscillator.frequency.value = frequency;
+  gain.gain.setValueAtTime(volume, audio.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, audio.currentTime + duration);
+  oscillator.connect(gain);
+  gain.connect(audio.destination);
+  oscillator.start();
+  oscillator.stop(audio.currentTime + duration);
 }
 
 function chooseWeighted(types) {
@@ -464,6 +498,7 @@ function spawnEntity(type, options = {}) {
     spin: (Math.random() - 0.5) * 2.2,
     sway: options.sway ?? defaultSway,
     phase: Math.random() * Math.PI * 2,
+    bounced: false,
     nearMissed: false,
     collected: false,
   });
@@ -564,6 +599,7 @@ function triggerDash() {
   dashUntil = elapsed + DASH_DURATION;
   dashCooldownUntil = elapsed + DASH_COOLDOWN;
   addPopup("대시!", player.x, player.y - 54, "#76b7ff");
+  playTone(520, 0.08, "triangle", 0.032);
   updateScoreUi();
 }
 
@@ -593,10 +629,23 @@ function updateObjects(dt) {
 
   for (const object of objects) {
     const pickupSlow = object.type.kind === "pickup" ? 0.86 : 1;
+    if (object.speed < 0) {
+      object.speed += 900 * dt;
+    }
+
     object.y += object.speed * speedMultiplier * pickupSlow * dt;
     object.rotation += object.spin * dt;
     object.x += Math.sin(elapsed * 3.2 + object.phase) * object.sway * dt;
     object.x = clamp(object.x, object.size * 0.38, WIDTH - object.size * 0.38);
+
+    if (object.type.id === "delivery" && !object.bounced && object.y > HEIGHT - 42) {
+      object.bounced = true;
+      object.y = HEIGHT - 42;
+      object.speed = -Math.abs(object.speed) * 0.48;
+      object.spin *= -1.3;
+      addPopup("통!", object.x, object.y - 34, "#ff8b5f");
+      playTone(210, 0.07, "square", 0.025);
+    }
   }
 }
 
@@ -630,6 +679,7 @@ function collectPickup(object) {
   }
 
   addPopup(`저축 +${object.type.value}`, object.x, object.y - 22, "#28303f");
+  playTone(720, 0.09, "triangle", 0.035);
 }
 
 function handleHazardCollision(object) {
@@ -639,18 +689,21 @@ function handleHazardCollision(object) {
     savingsScore = Math.max(0, savingsScore - 5);
     slipUntil = Math.max(slipUntil, elapsed + 2.7);
     addPopup("쿠폰 함정!", object.x, object.y, "#e65f5c");
+    playTone(180, 0.12, "sawtooth", 0.035);
     return;
   }
 
   if (isInvincible()) {
     savingsScore += 1;
     addPopup("방어!", object.x, object.y, "#76b7ff");
+    playTone(460, 0.08, "triangle", 0.03);
     return;
   }
 
   if (emergencyCharges > 0) {
     emergencyCharges -= 1;
     addPopup("비상금 사용!", object.x, object.y, "#d89022");
+    playTone(360, 0.09, "triangle", 0.03);
     return;
   }
 
@@ -695,6 +748,7 @@ function maybeAwardNearMiss(object) {
     nearMissCount += 1;
     savingsScore += 2;
     addPopup("아슬 +2", (object.x + player.x) / 2, player.y - 44, "#ff9cb5");
+    playTone(610, 0.055, "sine", 0.024);
   }
 }
 
