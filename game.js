@@ -21,6 +21,8 @@ const HIGH_SCORE_KEY = "donpihagi.highScore";
 const DASH_SPEED = 1180;
 const DASH_DURATION = 0.16;
 const DASH_COOLDOWN = 1.45;
+const STARTING_DASH_CHARGES = 5;
+const MAX_DASH_CHARGES = 5;
 
 const keys = {
   left: false,
@@ -179,6 +181,18 @@ const pickupTypes = [
     duration: 5,
   },
   {
+    id: "dash",
+    kind: "pickup",
+    label: "대시",
+    color: "#2563eb",
+    accent: "#eef7ff",
+    size: 48,
+    baseSpeed: 156,
+    weight: 0.78,
+    after: 12,
+    value: 8,
+  },
+  {
     id: "salary",
     kind: "pickup",
     label: "월급",
@@ -219,6 +233,7 @@ let emergencyCharges = 0;
 let dashUntil = 0;
 let dashCooldownUntil = 0;
 let dashDirection = 1;
+let dashCharges = STARTING_DASH_CHARGES;
 let audioContext = null;
 let playerVelocityX = 0;
 let walkPhase = 0;
@@ -316,13 +331,13 @@ function updateScoreUi() {
 
   if (state !== "playing") {
     dashButton.disabled = false;
-    dashButton.textContent = "대시";
+    dashButton.textContent = `대시 ${STARTING_DASH_CHARGES}`;
     return;
   }
 
   const cooldown = Math.max(0, dashCooldownUntil - elapsed);
-  dashButton.disabled = cooldown > 0;
-  dashButton.textContent = cooldown > 0 ? cooldown.toFixed(1) : "대시";
+  dashButton.disabled = cooldown > 0 || dashCharges <= 0;
+  dashButton.textContent = cooldown > 0 ? cooldown.toFixed(1) : `대시 ${dashCharges}`;
 }
 
 function getGrade() {
@@ -378,7 +393,7 @@ function showOverlay(mode) {
   overlayKicker.textContent = "월급날 생존 챌린지";
   overlayTitle.textContent = "잔고를 지켜요!";
   overlayText.textContent =
-    "소비 유혹은 피하고, 저금통과 가계부 같은 진짜 저축 아이템만 챙기세요.";
+    "소비 유혹은 피하고, 대시는 기본 5번만! 파란 대시 토큰으로 다시 충전하세요.";
   startButton.textContent = "시작하기";
   updateScoreUi();
 }
@@ -412,6 +427,7 @@ function resetGame() {
   dashUntil = 0;
   dashCooldownUntil = 0;
   dashDirection = 1;
+  dashCharges = STARTING_DASH_CHARGES;
   playerVelocityX = 0;
   walkPhase = 0;
   setPlayerX(WIDTH / 2);
@@ -609,11 +625,12 @@ function spawnWave() {
 }
 
 function triggerDash() {
-  if (state !== "playing" || elapsed < dashCooldownUntil) {
+  if (state !== "playing" || elapsed < dashCooldownUntil || dashCharges <= 0) {
     return;
   }
 
   dashDirection = lastMoveDirection || (player.x < WIDTH / 2 ? 1 : -1);
+  dashCharges -= 1;
   dashUntil = elapsed + DASH_DURATION;
   dashCooldownUntil = elapsed + DASH_COOLDOWN;
   addPopup("대시!", player.x, player.y - 54, "#76b7ff");
@@ -703,6 +720,9 @@ function collectPickup(object) {
   } else if (object.type.id === "saveMode") {
     saveModeUntil = Math.max(saveModeUntil, elapsed + object.type.duration);
     addPopup("+절약모드", object.x, object.y, "#3f8fea");
+  } else if (object.type.id === "dash") {
+    dashCharges = Math.min(MAX_DASH_CHARGES, dashCharges + 1);
+    addPopup("+대시 1", object.x, object.y, "#2563eb");
   } else if (object.type.id === "salary") {
     salarySurgeUntil = Math.max(salarySurgeUntil, elapsed + object.type.duration);
     addPopup("+월급! 후폭풍", object.x, object.y, "#e65f5c");
@@ -1060,8 +1080,9 @@ function getPickupStyle(id) {
   if (id === "salary") {
     return { color: "#ef4444", label: "월급" };
   }
-  if (id === "emergency" || id === "saveMode") {
-    return { color: "#2563eb", label: id === "emergency" ? "비상" : "절약" };
+  if (id === "emergency" || id === "saveMode" || id === "dash") {
+    const label = id === "emergency" ? "비상" : id === "dash" ? "대시" : "절약";
+    return { color: "#2563eb", label };
   }
   return { color: "#16a34a", label: id === "piggy" ? "저축" : "가계" };
 }
