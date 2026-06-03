@@ -22,7 +22,7 @@ const DASH_SPEED = 1180;
 const DASH_DURATION = 0.16;
 const DASH_COOLDOWN = 1.45;
 const STARTING_DASH_CHARGES = 5;
-const MAX_DASH_CHARGES = 5;
+const MAX_DASH_CHARGES = 9;
 
 const keys = {
   left: false,
@@ -337,7 +337,8 @@ function updateScoreUi() {
 
   const cooldown = Math.max(0, dashCooldownUntil - elapsed);
   dashButton.disabled = cooldown > 0 || dashCharges <= 0;
-  dashButton.textContent = cooldown > 0 ? cooldown.toFixed(1) : `대시 ${dashCharges}`;
+  dashButton.textContent =
+    cooldown > 0 ? `대시 ${dashCharges} · ${cooldown.toFixed(1)}` : `대시 ${dashCharges}`;
 }
 
 function getGrade() {
