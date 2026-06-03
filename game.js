@@ -20,6 +20,8 @@ const keys = {
   right: false,
 };
 
+let activeDragPointerId = null;
+
 const player = {
   x: WIDTH / 2,
   y: HEIGHT - 76,
@@ -70,6 +72,23 @@ function formatSeconds(seconds) {
   return `${seconds.toFixed(1)}초`;
 }
 
+function clampPlayerX(x) {
+  return Math.max(player.width / 2 + 10, Math.min(WIDTH - player.width / 2 - 10, x));
+}
+
+function setPlayerX(x) {
+  player.x = clampPlayerX(x);
+}
+
+function getCanvasPointerX(event) {
+  const rect = canvas.getBoundingClientRect();
+  return ((event.clientX - rect.left) / rect.width) * WIDTH;
+}
+
+function movePlayerToPointer(event) {
+  setPlayerX(getCanvasPointerX(event));
+}
+
 function updateScoreUi() {
   scoreEl.textContent = formatSeconds(elapsed);
   bestScoreEl.textContent = formatSeconds(bestScore);
@@ -105,7 +124,8 @@ function resetGame() {
   elapsed = 0;
   spawnTimer = 0;
   objects = [];
-  player.x = WIDTH / 2;
+  activeDragPointerId = null;
+  setPlayerX(WIDTH / 2);
   updateScoreUi();
   hideOverlay();
   requestAnimationFrame(loop);
@@ -168,8 +188,9 @@ function update(dt) {
   }
 
   const direction = Number(keys.right) - Number(keys.left);
-  player.x += direction * player.speed * dt;
-  player.x = Math.max(player.width / 2 + 10, Math.min(WIDTH - player.width / 2 - 10, player.x));
+  if (direction !== 0) {
+    setPlayerX(player.x + direction * player.speed * dt);
+  }
 
   for (const object of objects) {
     object.y += object.speed * dt;
@@ -435,6 +456,36 @@ function bindHoldButton(button, direction) {
   button.addEventListener("pointercancel", () => setMove(direction, false));
   button.addEventListener("lostpointercapture", () => setMove(direction, false));
 }
+
+canvas.addEventListener("pointerdown", (event) => {
+  if (state !== "playing") {
+    return;
+  }
+
+  event.preventDefault();
+  activeDragPointerId = event.pointerId;
+  canvas.setPointerCapture(event.pointerId);
+  movePlayerToPointer(event);
+});
+
+canvas.addEventListener("pointermove", (event) => {
+  if (state !== "playing" || event.pointerId !== activeDragPointerId) {
+    return;
+  }
+
+  event.preventDefault();
+  movePlayerToPointer(event);
+});
+
+function endCanvasDrag(event) {
+  if (event.pointerId === activeDragPointerId) {
+    activeDragPointerId = null;
+  }
+}
+
+canvas.addEventListener("pointerup", endCanvasDrag);
+canvas.addEventListener("pointercancel", endCanvasDrag);
+canvas.addEventListener("lostpointercapture", endCanvasDrag);
 
 startButton.addEventListener("click", resetGame);
 bindHoldButton(leftButton, "left");

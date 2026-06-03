@@ -12,4 +12,4 @@ Open `index.html` in a browser.
 
 - Move left: `←` or `A`
 - Move right: `→` or `D`
-- Mobile/touch: hold the left or right button
+- Mobile/touch: drag your finger across the play area
