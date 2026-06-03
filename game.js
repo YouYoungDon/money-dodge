@@ -14,6 +14,7 @@ const rightButton = document.querySelector("#rightButton");
 const WIDTH = canvas.width;
 const HEIGHT = canvas.height;
 const HIGH_SCORE_KEY = "donpihagi.highScore";
+const LANES = 5;
 
 const keys = {
   left: false,
@@ -27,7 +28,7 @@ const player = {
   y: HEIGHT - 76,
   width: 58,
   height: 64,
-  speed: 370,
+  speed: 420,
 };
 
 const objectTypes = [
@@ -37,8 +38,8 @@ const objectTypes = [
     color: "#ad7445",
     accent: "#fff0c9",
     size: 44,
-    baseSpeed: 168,
-    weight: 1,
+    baseSpeed: 220,
+    weight: 0.95,
   },
   {
     id: "delivery",
@@ -46,8 +47,8 @@ const objectTypes = [
     color: "#ff8b5f",
     accent: "#ffe07d",
     size: 54,
-    baseSpeed: 142,
-    weight: 0.85,
+    baseSpeed: 188,
+    weight: 1,
   },
   {
     id: "bill",
@@ -55,8 +56,8 @@ const objectTypes = [
     color: "#6d9cff",
     accent: "#ffffff",
     size: 62,
-    baseSpeed: 124,
-    weight: 0.72,
+    baseSpeed: 176,
+    weight: 0.95,
   },
 ];
 
@@ -87,6 +88,14 @@ function getCanvasPointerX(event) {
 
 function movePlayerToPointer(event) {
   setPlayerX(getCanvasPointerX(event));
+}
+
+function getSpawnInterval() {
+  return Math.max(0.22, 0.62 - elapsed * 0.007);
+}
+
+function laneCenter(index) {
+  return ((index + 0.5) / LANES) * WIDTH;
 }
 
 function updateScoreUi() {
@@ -156,17 +165,18 @@ function chooseObjectType() {
   return objectTypes[0];
 }
 
-function spawnObject() {
-  const type = chooseObjectType();
-  const speedBoost = Math.min(elapsed * 4.1, 185);
-  const sway = type.id === "bill" ? 34 + Math.random() * 24 : Math.random() * 18;
+function spawnObject(options = {}) {
+  const type = options.type || chooseObjectType();
+  const speedBoost = Math.min(elapsed * 6.6, 320);
+  const sway =
+    options.sway ?? (type.id === "bill" ? 42 + Math.random() * 30 : 8 + Math.random() * 24);
 
   objects.push({
     type,
-    x: type.size / 2 + Math.random() * (WIDTH - type.size),
-    y: -type.size,
+    x: options.x ?? type.size / 2 + Math.random() * (WIDTH - type.size),
+    y: options.y ?? -type.size,
     size: type.size,
-    speed: type.baseSpeed + speedBoost + Math.random() * 36,
+    speed: (type.baseSpeed + speedBoost + Math.random() * 54) * (options.speedMultiplier ?? 1),
     rotation: Math.random() * Math.PI * 2,
     spin: (Math.random() - 0.5) * 2.4,
     sway,
@@ -174,17 +184,53 @@ function spawnObject() {
   });
 }
 
+function spawnCurtain() {
+  const gapLane = Math.floor(Math.random() * LANES);
+
+  for (let lane = 0; lane < LANES; lane += 1) {
+    if (lane === gapLane) {
+      continue;
+    }
+
+    spawnObject({
+      x: laneCenter(lane),
+      y: -78 - Math.random() * 90,
+      speedMultiplier: 0.86,
+      sway: 6 + Math.random() * 14,
+    });
+  }
+}
+
+function spawnWave() {
+  spawnObject();
+
+  if (elapsed > 6 && Math.random() < Math.min(0.7, 0.28 + elapsed * 0.01)) {
+    spawnObject({
+      y: -112 - Math.random() * 70,
+      speedMultiplier: 0.98,
+    });
+  }
+
+  if (elapsed > 16 && Math.random() < Math.min(0.46, 0.1 + elapsed * 0.006)) {
+    spawnObject({
+      y: -184 - Math.random() * 90,
+      speedMultiplier: 0.92,
+    });
+  }
+
+  if (elapsed > 30 && Math.random() < Math.min(0.34, elapsed * 0.004)) {
+    spawnCurtain();
+  }
+}
+
 function update(dt) {
   elapsed += dt;
   spawnTimer -= dt;
 
-  const spawnInterval = Math.max(0.34, 0.86 - elapsed * 0.008);
+  const spawnInterval = getSpawnInterval();
   if (spawnTimer <= 0) {
-    spawnObject();
-    if (elapsed > 18 && Math.random() < Math.min(0.42, elapsed * 0.006)) {
-      spawnObject();
-    }
-    spawnTimer = spawnInterval;
+    spawnWave();
+    spawnTimer = spawnInterval * (0.88 + Math.random() * 0.24);
   }
 
   const direction = Number(keys.right) - Number(keys.left);
@@ -209,17 +255,17 @@ function update(dt) {
 
 function hasCollision(object) {
   const playerHitbox = {
-    x: player.x - player.width * 0.34,
-    y: player.y - player.height * 0.44,
-    width: player.width * 0.68,
-    height: player.height * 0.78,
+    x: player.x - player.width * 0.36,
+    y: player.y - player.height * 0.46,
+    width: player.width * 0.72,
+    height: player.height * 0.82,
   };
 
   const objectHitbox = {
-    x: object.x - object.size * 0.38,
-    y: object.y - object.size * 0.38,
-    width: object.size * 0.76,
-    height: object.size * 0.76,
+    x: object.x - object.size * 0.4,
+    y: object.y - object.size * 0.4,
+    width: object.size * 0.8,
+    height: object.size * 0.8,
   };
 
   return (
@@ -262,29 +308,79 @@ function drawPlayer() {
   ctx.ellipse(0, 40, 34, 9, 0, 0, Math.PI * 2);
   ctx.fill();
 
-  ctx.fillStyle = "#7dd7b7";
-  roundRect(-24, -10, 48, 50, 16);
+  ctx.fillStyle = "#7a4b32";
+  ctx.save();
+  ctx.translate(-30, 17);
+  ctx.rotate(-0.48);
+  ctx.beginPath();
+  ctx.ellipse(0, 0, 14, 42, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+
+  ctx.fillStyle = "#9a6542";
+  roundRect(-25, -8, 50, 50, 18);
   ctx.fill();
 
-  ctx.fillStyle = "#ffe4bc";
+  ctx.fillStyle = "#f6d8a8";
   ctx.beginPath();
-  ctx.arc(0, -26, 25, 0, Math.PI * 2);
+  ctx.ellipse(0, 18, 17, 22, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = "#7a4b32";
+  ctx.beginPath();
+  ctx.arc(-18, -43, 9, 0, Math.PI * 2);
+  ctx.arc(18, -43, 9, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = "#9a6542";
+  ctx.beginPath();
+  ctx.arc(0, -28, 26, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = "#f6d8a8";
+  ctx.beginPath();
+  ctx.ellipse(-8, -22, 10, 9, -0.12, 0, Math.PI * 2);
+  ctx.ellipse(8, -22, 10, 9, 0.12, 0, Math.PI * 2);
   ctx.fill();
 
   ctx.fillStyle = "#3b3142";
   ctx.beginPath();
-  ctx.arc(-8, -28, 3, 0, Math.PI * 2);
-  ctx.arc(8, -28, 3, 0, Math.PI * 2);
+  ctx.arc(-9, -32, 3.2, 0, Math.PI * 2);
+  ctx.arc(9, -32, 3.2, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = "#2d2230";
+  ctx.beginPath();
+  ctx.ellipse(0, -24, 5, 3.8, 0, 0, Math.PI * 2);
   ctx.fill();
 
   ctx.strokeStyle = "#3b3142";
-  ctx.lineWidth = 2.5;
+  ctx.lineWidth = 2;
+  ctx.lineCap = "round";
   ctx.beginPath();
-  ctx.arc(0, -22, 9, 0.14 * Math.PI, 0.86 * Math.PI);
+  ctx.moveTo(-7, -20);
+  ctx.lineTo(-22, -23);
+  ctx.moveTo(-7, -18);
+  ctx.lineTo(-23, -17);
+  ctx.moveTo(7, -20);
+  ctx.lineTo(22, -23);
+  ctx.moveTo(7, -18);
+  ctx.lineTo(23, -17);
   ctx.stroke();
 
+  ctx.lineWidth = 2.4;
+  ctx.beginPath();
+  ctx.arc(0, -21, 8, 0.18 * Math.PI, 0.82 * Math.PI);
+  ctx.stroke();
+
+  ctx.fillStyle = "#7a4b32";
+  ctx.beginPath();
+  ctx.arc(-21, 6, 8, 0, Math.PI * 2);
+  ctx.arc(21, 6, 8, 0, Math.PI * 2);
+  ctx.fill();
+
   ctx.fillStyle = "#ffd36f";
-  roundRect(-18, 9, 36, 24, 8);
+  roundRect(-18, 9, 36, 25, 9);
   ctx.fill();
   ctx.fillStyle = "#3b3142";
   ctx.font = "900 12px sans-serif";
