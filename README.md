@@ -2,7 +2,9 @@
 
 **돈피하기** is a tiny browser arcade game inspired by classic falling-object dodge games.
 
-Avoid spending temptations, collect real saving items, and keep the otter's balance alive for as long as possible. Survival time is saved as the high score in `localStorage`, while saving points come from helper items and near misses.
+Avoid spending temptations, collect real saving items, and keep the stick figure's balance alive for as long as possible. Survival time is saved as the high score in `localStorage`, while saving points come from helper items and near misses.
+
+Visual rule: black falling objects are danger. Green, blue, and red tokens are collectibles with different effects.
 
 ## Run
 

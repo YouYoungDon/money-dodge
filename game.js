@@ -810,13 +810,13 @@ function update(dt) {
 
 function drawBackground() {
   const gradient = ctx.createLinearGradient(0, 0, 0, HEIGHT);
-  gradient.addColorStop(0, elapsed < salarySurgeUntil ? "#fff0c9" : "#fff9df");
-  gradient.addColorStop(0.58, "#ddf7ec");
-  gradient.addColorStop(1, elapsed < slipUntil ? "#ffe1e7" : "#ffe8f0");
+  gradient.addColorStop(0, "#fffdf7");
+  gradient.addColorStop(0.66, "#f7faf7");
+  gradient.addColorStop(1, "#f1f5f2");
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, WIDTH, HEIGHT);
 
-  ctx.fillStyle = "rgba(255, 255, 255, 0.55)";
+  ctx.fillStyle = "rgba(40, 48, 63, 0.045)";
   for (let i = 0; i < 12; i += 1) {
     const x = (i * 97 + elapsed * 14) % (WIDTH + 80) - 40;
     const y = 42 + ((i * 53) % 250);
@@ -867,7 +867,7 @@ function drawStatusChips() {
   }
 }
 
-function drawPlayer() {
+function drawOtterPlayer() {
   ctx.save();
   ctx.translate(player.x, player.y);
 
@@ -967,6 +967,55 @@ function drawPlayer() {
   ctx.restore();
 }
 
+function drawPlayer() {
+  ctx.save();
+  ctx.translate(player.x, player.y);
+
+  if (isInvincible()) {
+    ctx.strokeStyle = "rgba(37, 99, 235, 0.78)";
+    ctx.lineWidth = 5;
+    ctx.beginPath();
+    ctx.ellipse(0, -4, 40, 58, 0, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  ctx.fillStyle = "rgba(0, 0, 0, 0.16)";
+  ctx.beginPath();
+  ctx.ellipse(0, 40, 30, 8, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.strokeStyle = "#111111";
+  ctx.fillStyle = "#111111";
+  ctx.lineWidth = 6;
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+
+  ctx.beginPath();
+  ctx.arc(0, -38, 14, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.beginPath();
+  ctx.moveTo(0, -22);
+  ctx.lineTo(0, 13);
+  ctx.moveTo(0, -8);
+  ctx.lineTo(-22, 2);
+  ctx.moveTo(0, -8);
+  ctx.lineTo(22, 2);
+  ctx.moveTo(0, 13);
+  ctx.lineTo(-18, 38);
+  ctx.moveTo(0, 13);
+  ctx.lineTo(18, 38);
+  ctx.stroke();
+
+  ctx.strokeStyle = "#ffffff";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(0, -38, 7, 0.15 * Math.PI, 0.85 * Math.PI);
+  ctx.stroke();
+
+  ctx.restore();
+}
+
 function drawObject(object) {
   ctx.save();
   ctx.translate(object.x, object.y);
@@ -976,51 +1025,101 @@ function drawObject(object) {
     ctx.scale(0.85, 0.85);
   }
 
-  switch (object.type.id) {
-    case "coin":
-      drawCoin(object);
-      break;
-    case "coffee":
-      drawCoffee(object);
-      break;
-    case "delivery":
-      drawDelivery(object);
-      break;
-    case "bill":
-      drawBill(object);
-      break;
-    case "subscription":
-      drawSubscription(object);
-      break;
-    case "cash":
-      drawCash(object);
-      break;
-    case "coupon":
-      drawCoupon(object);
-      break;
-    case "tax":
-      drawTax(object);
-      break;
-    case "piggy":
-      drawPiggy(object);
-      break;
-    case "ledger":
-      drawLedger(object);
-      break;
-    case "emergency":
-      drawEmergency(object);
-      break;
-    case "saveMode":
-      drawSaveMode(object);
-      break;
-    case "salary":
-      drawSalary(object);
-      break;
-    default:
-      drawCoin(object);
+  if (object.type.kind === "pickup") {
+    drawPickupToken(object);
+  } else {
+    drawHazardSilhouette(object);
   }
 
   ctx.restore();
+}
+
+function drawHazardSilhouette(object) {
+  const s = object.size;
+  const label = object.type.label.slice(0, 2);
+  const isCoin = object.type.id === "coin";
+  const isMoneyBlock = object.type.id === "cash" || object.type.id === "tax";
+
+  ctx.fillStyle = "rgba(0, 0, 0, 0.18)";
+  if (isCoin) {
+    ctx.beginPath();
+    ctx.arc(4, 5, s * 0.46, 0, Math.PI * 2);
+    ctx.fill();
+  } else {
+    roundRect(-s * 0.48 + 4, -s * 0.3 + 5, s * 0.96, s * 0.62, 8);
+    ctx.fill();
+  }
+
+  ctx.fillStyle = "#111111";
+  if (isCoin) {
+    ctx.beginPath();
+    ctx.arc(0, 0, s * 0.46, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (isMoneyBlock) {
+    roundRect(-s * 0.5, -s * 0.27, s, s * 0.54, 8);
+    ctx.fill();
+  } else {
+    roundRect(-s * 0.42, -s * 0.35, s * 0.84, s * 0.7, 10);
+    ctx.fill();
+  }
+
+  ctx.strokeStyle = "#ffffff";
+  ctx.lineWidth = Math.max(2, s * 0.06);
+  if (isCoin) {
+    ctx.beginPath();
+    ctx.arc(0, 0, s * 0.24, 0, Math.PI * 2);
+    ctx.stroke();
+  } else {
+    ctx.beginPath();
+    ctx.moveTo(-s * 0.24, -s * 0.09);
+    ctx.lineTo(s * 0.24, -s * 0.09);
+    ctx.moveTo(-s * 0.24, s * 0.09);
+    ctx.lineTo(s * 0.24, s * 0.09);
+    ctx.stroke();
+  }
+
+  ctx.fillStyle = "#ffffff";
+  ctx.font = `900 ${Math.max(11, s * 0.18)}px sans-serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(isCoin ? "₩" : label, 0, 0);
+}
+
+function getPickupStyle(id) {
+  if (id === "salary") {
+    return { color: "#ef4444", label: "월급" };
+  }
+  if (id === "emergency" || id === "saveMode") {
+    return { color: "#2563eb", label: id === "emergency" ? "비상" : "절약" };
+  }
+  return { color: "#16a34a", label: id === "piggy" ? "저축" : "가계" };
+}
+
+function drawPickupToken(object) {
+  const s = object.size;
+  const style = getPickupStyle(object.type.id);
+
+  ctx.fillStyle = "rgba(0, 0, 0, 0.16)";
+  ctx.beginPath();
+  ctx.arc(3, 5, s * 0.46, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = style.color;
+  ctx.beginPath();
+  ctx.arc(0, 0, s * 0.46, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.strokeStyle = "#ffffff";
+  ctx.lineWidth = Math.max(3, s * 0.08);
+  ctx.beginPath();
+  ctx.arc(0, 0, s * 0.32, 0, Math.PI * 2);
+  ctx.stroke();
+
+  ctx.fillStyle = "#ffffff";
+  ctx.font = `900 ${Math.max(12, s * 0.2)}px sans-serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(style.label, 0, 0);
 }
 
 function drawCoin(object) {
