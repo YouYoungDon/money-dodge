@@ -1,0 +1,260 @@
+:root {
+  color-scheme: light;
+  --ink: #28303f;
+  --muted: #687286;
+  --cream: #fff8e8;
+  --panel: #fffdf7;
+  --mint: #8edfc2;
+  --pink: #ff9cb5;
+  --yellow: #ffd36f;
+  --blue: #76b7ff;
+  --line: rgba(40, 48, 63, 0.14);
+  --shadow: 0 20px 50px rgba(56, 43, 31, 0.18);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  min-height: 100vh;
+  color: var(--ink);
+  font-family:
+    "Pretendard",
+    "Apple SD Gothic Neo",
+    "Malgun Gothic",
+    system-ui,
+    sans-serif;
+  background:
+    radial-gradient(circle at 18% 18%, rgba(255, 211, 111, 0.46), transparent 28%),
+    radial-gradient(circle at 86% 12%, rgba(118, 183, 255, 0.36), transparent 25%),
+    linear-gradient(160deg, #fff4c6 0%, #dcf7ec 48%, #ffe7ef 100%);
+}
+
+button {
+  color: inherit;
+  font: inherit;
+}
+
+.shell {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  padding: 18px;
+}
+
+.game-card {
+  width: min(100%, 560px);
+  border: 2px solid rgba(255, 255, 255, 0.75);
+  border-radius: 28px;
+  background: rgba(255, 253, 247, 0.9);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+.top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 18px 18px 14px;
+}
+
+.eyebrow {
+  margin: 0 0 4px;
+  color: #e66d8e;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+h1 {
+  margin: 0;
+  font-size: clamp(30px, 8vw, 48px);
+  line-height: 0.95;
+}
+
+.score-board {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(72px, 1fr));
+  gap: 8px;
+  min-width: 164px;
+}
+
+.score-board div {
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: #ffffffcc;
+  padding: 10px 8px;
+  text-align: center;
+}
+
+.score-board span {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.score-board strong {
+  display: block;
+  margin-top: 3px;
+  font-size: 18px;
+}
+
+.canvas-wrap {
+  position: relative;
+  padding: 0 18px;
+}
+
+canvas {
+  display: block;
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  border: 2px solid rgba(40, 48, 63, 0.12);
+  border-radius: 22px;
+  background: #fff8e8;
+  box-shadow: inset 0 0 0 8px rgba(255, 255, 255, 0.5);
+}
+
+.overlay {
+  position: absolute;
+  inset: 0 18px;
+  display: grid;
+  place-items: center;
+  border-radius: 22px;
+  background: rgba(255, 248, 232, 0.72);
+  backdrop-filter: blur(6px);
+}
+
+.overlay.hidden {
+  display: none;
+}
+
+.overlay-panel {
+  width: min(84%, 340px);
+  border: 2px solid rgba(255, 255, 255, 0.85);
+  border-radius: 24px;
+  background: #fffdf7;
+  padding: 24px 20px;
+  text-align: center;
+  box-shadow: 0 16px 40px rgba(40, 48, 63, 0.14);
+}
+
+.overlay-panel p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+.overlay-panel #overlayKicker {
+  color: #e66d8e;
+  font-weight: 900;
+}
+
+.overlay-panel h2 {
+  margin: 8px 0 8px;
+  font-size: 28px;
+  line-height: 1.15;
+}
+
+#startButton {
+  width: 100%;
+  min-height: 50px;
+  margin-top: 18px;
+  border: 0;
+  border-radius: 16px;
+  background: linear-gradient(135deg, var(--yellow), var(--pink));
+  box-shadow: 0 10px 0 #c96d50;
+  color: #392717;
+  cursor: pointer;
+  font-size: 18px;
+  font-weight: 900;
+}
+
+#startButton:active {
+  transform: translateY(4px);
+  box-shadow: 0 6px 0 #c96d50;
+}
+
+.bottom-bar {
+  display: grid;
+  grid-template-columns: 92px 1fr 92px;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 18px 18px;
+}
+
+.bottom-bar p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.move-button {
+  min-height: 46px;
+  border: 1px solid rgba(40, 48, 63, 0.14);
+  border-radius: 16px;
+  background: #ffffffd9;
+  box-shadow: 0 5px 0 rgba(40, 48, 63, 0.14);
+  cursor: pointer;
+  font-weight: 900;
+}
+
+.move-button:active {
+  transform: translateY(3px);
+  box-shadow: 0 2px 0 rgba(40, 48, 63, 0.14);
+}
+
+@media (max-width: 480px) {
+  .shell {
+    padding: 10px;
+  }
+
+  .game-card {
+    border-radius: 22px;
+  }
+
+  .top-bar {
+    align-items: flex-start;
+    padding: 15px 12px 12px;
+  }
+
+  .score-board {
+    grid-template-columns: 1fr;
+    min-width: 88px;
+  }
+
+  .score-board div {
+    padding: 7px 6px;
+  }
+
+  .score-board strong {
+    font-size: 16px;
+  }
+
+  .canvas-wrap {
+    padding: 0 10px;
+  }
+
+  .overlay {
+    inset: 0 10px;
+  }
+
+  .bottom-bar {
+    grid-template-columns: 76px 1fr 76px;
+    padding: 12px 10px 14px;
+  }
+
+  .bottom-bar p {
+    font-size: 12px;
+  }
+}

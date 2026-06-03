@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>돈피하기 | DonPihagi</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="shell" aria-label="돈피하기 게임">
+      <section class="game-card">
+        <header class="top-bar">
+          <div>
+            <p class="eyebrow">월급은 스쳐간다</p>
+            <h1>돈피하기</h1>
+          </div>
+          <div class="score-board" aria-live="polite">
+            <div>
+              <span>생존</span>
+              <strong id="score">0.0초</strong>
+            </div>
+            <div>
+              <span>최고</span>
+              <strong id="bestScore">0.0초</strong>
+            </div>
+          </div>
+        </header>
+
+        <div class="canvas-wrap">
+          <canvas id="game" width="480" height="720" aria-label="돈피하기 플레이 화면"></canvas>
+          <div id="overlay" class="overlay">
+            <div class="overlay-panel">
+              <p id="overlayKicker">귀여운 절약 챌린지</p>
+              <h2 id="overlayTitle">지출 폭탄을 피해요!</h2>
+              <p id="overlayText">커피, 배달음식, 카드값을 피하며 오래 버티세요.</p>
+              <button id="startButton" type="button">시작하기</button>
+            </div>
+          </div>
+        </div>
+
+        <footer class="bottom-bar">
+          <button id="leftButton" class="move-button" type="button" aria-label="왼쪽으로 이동">왼쪽</button>
+          <p>← → 또는 A/D로 이동</p>
+          <button id="rightButton" class="move-button" type="button" aria-label="오른쪽으로 이동">오른쪽</button>
+        </footer>
+      </section>
+    </main>
+
+    <script src="game.js"></script>
+  </body>
+</html>
