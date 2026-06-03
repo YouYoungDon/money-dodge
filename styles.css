@@ -81,9 +81,9 @@ h1 {
 
 .score-board {
   display: grid;
-  grid-template-columns: repeat(2, minmax(72px, 1fr));
+  grid-template-columns: repeat(3, minmax(66px, 1fr));
   gap: 8px;
-  min-width: 164px;
+  min-width: 222px;
 }
 
 .score-board div {
@@ -192,7 +192,7 @@ canvas:active {
 
 .bottom-bar {
   display: grid;
-  grid-template-columns: 92px 1fr 92px;
+  grid-template-columns: 82px 1fr 82px 76px;
   align-items: center;
   gap: 10px;
   padding: 14px 18px 18px;
@@ -219,6 +219,17 @@ canvas:active {
 .move-button:active {
   transform: translateY(3px);
   box-shadow: 0 2px 0 rgba(40, 48, 63, 0.14);
+}
+
+.move-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+  transform: none;
+}
+
+.dash-button {
+  background: #28303f;
+  color: #fffdf7;
 }
 
 @media (max-width: 480px) {
@@ -257,7 +268,7 @@ canvas:active {
   }
 
   .bottom-bar {
-    grid-template-columns: 76px 1fr 76px;
+    grid-template-columns: 64px 1fr 64px 58px;
     padding: 12px 10px 14px;
   }
 

@@ -2,6 +2,7 @@ const canvas = document.querySelector("#game");
 const ctx = canvas.getContext("2d");
 
 const scoreEl = document.querySelector("#score");
+const savingsEl = document.querySelector("#savingsScore");
 const bestScoreEl = document.querySelector("#bestScore");
 const overlay = document.querySelector("#overlay");
 const overlayKicker = document.querySelector("#overlayKicker");
@@ -10,54 +11,185 @@ const overlayText = document.querySelector("#overlayText");
 const startButton = document.querySelector("#startButton");
 const leftButton = document.querySelector("#leftButton");
 const rightButton = document.querySelector("#rightButton");
+const dashButton = document.querySelector("#dashButton");
 
 const WIDTH = canvas.width;
 const HEIGHT = canvas.height;
-const HIGH_SCORE_KEY = "donpihagi.highScore";
 const LANES = 5;
+const HIGH_SCORE_KEY = "donpihagi.highScore";
+
+const DASH_SPEED = 1180;
+const DASH_DURATION = 0.16;
+const DASH_COOLDOWN = 1.45;
 
 const keys = {
   left: false,
   right: false,
 };
 
-let activeDragPointerId = null;
-
 const player = {
   x: WIDTH / 2,
   y: HEIGHT - 76,
   width: 58,
   height: 64,
-  speed: 420,
+  speed: 430,
 };
 
-const objectTypes = [
+const hazardTypes = [
+  {
+    id: "coin",
+    kind: "hazard",
+    label: "동전비",
+    color: "#f3c549",
+    accent: "#fff7b8",
+    size: 34,
+    baseSpeed: 330,
+    weight: 0.9,
+    after: 0,
+  },
   {
     id: "coffee",
+    kind: "hazard",
     label: "커피",
     color: "#ad7445",
     accent: "#fff0c9",
     size: 44,
-    baseSpeed: 220,
-    weight: 0.95,
+    baseSpeed: 230,
+    weight: 1,
+    after: 0,
   },
   {
     id: "delivery",
-    label: "배달",
+    kind: "hazard",
+    label: "배달음식",
     color: "#ff8b5f",
     accent: "#ffe07d",
     size: 54,
-    baseSpeed: 188,
-    weight: 1,
+    baseSpeed: 202,
+    weight: 0.95,
+    after: 4,
   },
   {
     id: "bill",
+    kind: "hazard",
     label: "카드값",
     color: "#6d9cff",
     accent: "#ffffff",
     size: 62,
-    baseSpeed: 176,
+    baseSpeed: 186,
     weight: 0.95,
+    after: 8,
+  },
+  {
+    id: "subscription",
+    kind: "hazard",
+    label: "구독료",
+    color: "#8d6be8",
+    accent: "#f1eaff",
+    size: 50,
+    baseSpeed: 212,
+    weight: 0.75,
+    after: 15,
+  },
+  {
+    id: "cash",
+    kind: "hazard",
+    label: "지폐다발",
+    color: "#62bd76",
+    accent: "#dff7c8",
+    size: 68,
+    baseSpeed: 158,
+    weight: 0.68,
+    after: 25,
+  },
+  {
+    id: "coupon",
+    kind: "trap",
+    label: "할인쿠폰",
+    color: "#ffdf68",
+    accent: "#ff6e8d",
+    size: 50,
+    baseSpeed: 210,
+    weight: 0.58,
+    after: 35,
+  },
+  {
+    id: "tax",
+    kind: "hazard",
+    label: "세금고지서",
+    color: "#e65f5c",
+    accent: "#fff3ef",
+    size: 78,
+    baseSpeed: 142,
+    weight: 0.32,
+    after: 72,
+  },
+];
+
+const pickupTypes = [
+  {
+    id: "piggy",
+    kind: "pickup",
+    label: "저금통",
+    color: "#ff9cb5",
+    accent: "#fff1f5",
+    size: 48,
+    baseSpeed: 154,
+    weight: 1,
+    after: 4,
+    value: 15,
+    duration: 4.2,
+  },
+  {
+    id: "ledger",
+    kind: "pickup",
+    label: "가계부",
+    color: "#63cdb1",
+    accent: "#e4fff7",
+    size: 50,
+    baseSpeed: 146,
+    weight: 0.86,
+    after: 10,
+    value: 12,
+    duration: 4.6,
+  },
+  {
+    id: "emergency",
+    kind: "pickup",
+    label: "비상금",
+    color: "#ffd36f",
+    accent: "#fff8d7",
+    size: 48,
+    baseSpeed: 144,
+    weight: 0.66,
+    after: 18,
+    value: 10,
+  },
+  {
+    id: "saveMode",
+    kind: "pickup",
+    label: "절약모드",
+    color: "#76b7ff",
+    accent: "#eef7ff",
+    size: 52,
+    baseSpeed: 138,
+    weight: 0.56,
+    after: 24,
+    value: 14,
+    duration: 5,
+  },
+  {
+    id: "salary",
+    kind: "pickup",
+    label: "월급",
+    color: "#ff7575",
+    accent: "#fff2c7",
+    size: 58,
+    baseSpeed: 132,
+    weight: 0.42,
+    after: 45,
+    value: 28,
+    duration: 7,
   },
 ];
 
@@ -65,20 +197,66 @@ let state = "ready";
 let lastTime = 0;
 let elapsed = 0;
 let spawnTimer = 0;
+let pickupTimer = 4.4;
 let objects = [];
+let popups = [];
+let savingsScore = 0;
+let nearMissCount = 0;
 let bestScore = Number(localStorage.getItem(HIGH_SCORE_KEY) || 0);
 let lastRunWasRecord = false;
+let lastCollisionLabel = "";
+
+let activeDragPointerId = null;
+let dragTargetX = null;
+let lastPointerX = null;
+let lastMoveDirection = 1;
+let invincibleUntil = 0;
+let slowUntil = 0;
+let slipUntil = 0;
+let saveModeUntil = 0;
+let salarySurgeUntil = 0;
+let emergencyCharges = 0;
+let dashUntil = 0;
+let dashCooldownUntil = 0;
+let dashDirection = 1;
 
 function formatSeconds(seconds) {
   return `${seconds.toFixed(1)}초`;
 }
 
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+
 function clampPlayerX(x) {
-  return Math.max(player.width / 2 + 10, Math.min(WIDTH - player.width / 2 - 10, x));
+  return clamp(x, player.width / 2 + 10, WIDTH - player.width / 2 - 10);
 }
 
 function setPlayerX(x) {
   player.x = clampPlayerX(x);
+}
+
+function isInvincible() {
+  return elapsed < invincibleUntil || elapsed < dashUntil;
+}
+
+function isSlippery() {
+  return elapsed < slipUntil;
+}
+
+function isSaveMode() {
+  return elapsed < saveModeUntil;
+}
+
+function getGlobalSpeedMultiplier() {
+  let multiplier = 1;
+  if (elapsed < slowUntil) {
+    multiplier *= 0.56;
+  }
+  if (elapsed < salarySurgeUntil) {
+    multiplier *= 1.24;
+  }
+  return multiplier;
 }
 
 function getCanvasPointerX(event) {
@@ -87,20 +265,86 @@ function getCanvasPointerX(event) {
 }
 
 function movePlayerToPointer(event) {
-  setPlayerX(getCanvasPointerX(event));
-}
+  const nextX = getCanvasPointerX(event);
+  if (lastPointerX !== null && Math.abs(nextX - lastPointerX) > 1) {
+    lastMoveDirection = Math.sign(nextX - lastPointerX);
+  }
+  lastPointerX = nextX;
+  dragTargetX = clampPlayerX(nextX);
 
-function getSpawnInterval() {
-  return Math.max(0.22, 0.62 - elapsed * 0.007);
+  if (!isSlippery()) {
+    setPlayerX(dragTargetX);
+  }
 }
 
 function laneCenter(index) {
   return ((index + 0.5) / LANES) * WIDTH;
 }
 
+function getSpawnInterval() {
+  if (elapsed < 15) {
+    return Math.max(0.36, 0.68 - elapsed * 0.006);
+  }
+  if (elapsed < 45) {
+    return Math.max(0.24, 0.54 - (elapsed - 15) * 0.007);
+  }
+  if (elapsed < 75) {
+    return Math.max(0.2, 0.34 - (elapsed - 45) * 0.0025);
+  }
+  return 0.18;
+}
+
 function updateScoreUi() {
   scoreEl.textContent = formatSeconds(elapsed);
+  savingsEl.textContent = `${savingsScore}점`;
   bestScoreEl.textContent = formatSeconds(bestScore);
+
+  if (state !== "playing") {
+    dashButton.disabled = false;
+    dashButton.textContent = "대시";
+    return;
+  }
+
+  const cooldown = Math.max(0, dashCooldownUntil - elapsed);
+  dashButton.disabled = cooldown > 0;
+  dashButton.textContent = cooldown > 0 ? cooldown.toFixed(1) : "대시";
+}
+
+function getGrade() {
+  if (elapsed >= 120) {
+    return "절약 전설";
+  }
+  if (elapsed >= 90) {
+    return "무지출 고수";
+  }
+  if (elapsed >= 60) {
+    return "월급 방어 성공";
+  }
+  if (elapsed >= 35) {
+    return "커피값 방어";
+  }
+  if (elapsed >= 15) {
+    return "잔고 수비대";
+  }
+  return "귀여운 첫 도전";
+}
+
+function getResultLine() {
+  const lines = [
+    "오늘도 무지출은 실패했지만 귀여웠다.",
+    "잔고가 바람처럼 스쳐갔어요.",
+    "카드값에게 정면승부를 걸지 마세요.",
+    "월급은 들어왔고, 바로 나갔습니다.",
+    "절약왕까지 조금 남았었는데요.",
+  ];
+
+  if (nearMissCount >= 12) {
+    return "방금 몇 번은 정말 아슬아슬했어요.";
+  }
+  if (savingsScore >= 70) {
+    return "저축 감각은 살아있습니다. 손만 조금 더 바쁘게!";
+  }
+  return lines[Math.floor(Math.random() * lines.length)];
 }
 
 function showOverlay(mode) {
@@ -108,19 +352,20 @@ function showOverlay(mode) {
 
   if (mode === "gameover") {
     const isRecord = lastRunWasRecord;
-    overlayKicker.textContent = isRecord ? "신기록 달성!" : "잔고 방어 실패";
-    overlayTitle.textContent = `${formatSeconds(elapsed)} 생존`;
-    overlayText.textContent = isRecord
-      ? "오늘의 무지출 감각, 꽤 날카로웠어요."
-      : "커피와 배달과 카드값은 언제나 위에서 옵니다.";
+    overlayKicker.textContent = isRecord ? "신기록 달성!" : "잔고 방어 종료";
+    overlayTitle.textContent = `${getGrade()} · ${formatSeconds(elapsed)}`;
+    overlayText.textContent = `${lastCollisionLabel || "지출"}에 닿았어요. 저축 ${savingsScore}점, 근접 회피 ${nearMissCount}회. ${getResultLine()}`;
     startButton.textContent = "다시 도전";
+    updateScoreUi();
     return;
   }
 
-  overlayKicker.textContent = "귀여운 절약 챌린지";
-  overlayTitle.textContent = "지출 폭탄을 피해요!";
-  overlayText.textContent = "커피, 배달음식, 카드값을 피하며 오래 버티세요.";
+  overlayKicker.textContent = "월급날 생존 챌린지";
+  overlayTitle.textContent = "잔고를 지켜요!";
+  overlayText.textContent =
+    "소비 유혹은 피하고, 저금통과 가계부 같은 진짜 저축 아이템만 챙기세요.";
   startButton.textContent = "시작하기";
+  updateScoreUi();
 }
 
 function hideOverlay() {
@@ -132,16 +377,34 @@ function resetGame() {
   lastTime = 0;
   elapsed = 0;
   spawnTimer = 0;
+  pickupTimer = 4.4;
   objects = [];
+  popups = [];
+  savingsScore = 0;
+  nearMissCount = 0;
+  lastRunWasRecord = false;
+  lastCollisionLabel = "";
   activeDragPointerId = null;
+  dragTargetX = null;
+  lastPointerX = null;
+  invincibleUntil = 0;
+  slowUntil = 0;
+  slipUntil = 0;
+  saveModeUntil = 0;
+  salarySurgeUntil = 0;
+  emergencyCharges = 0;
+  dashUntil = 0;
+  dashCooldownUntil = 0;
+  dashDirection = 1;
   setPlayerX(WIDTH / 2);
   updateScoreUi();
   hideOverlay();
   requestAnimationFrame(loop);
 }
 
-function finishGame() {
+function finishGame(label) {
   state = "gameover";
+  lastCollisionLabel = label;
   lastRunWasRecord = elapsed > bestScore;
   if (lastRunWasRecord) {
     bestScore = elapsed;
@@ -151,121 +414,314 @@ function finishGame() {
   showOverlay("gameover");
 }
 
-function chooseObjectType() {
-  const totalWeight = objectTypes.reduce((sum, type) => sum + type.weight, 0);
+function addPopup(text, x, y, color = "#28303f") {
+  popups.push({
+    text,
+    x,
+    y,
+    color,
+    life: 0.9,
+    maxLife: 0.9,
+  });
+}
+
+function chooseWeighted(types) {
+  const candidates = types.filter((type) => elapsed >= type.after);
+  const totalWeight = candidates.reduce((sum, type) => sum + type.weight, 0);
   let roll = Math.random() * totalWeight;
 
-  for (const type of objectTypes) {
+  for (const type of candidates) {
     roll -= type.weight;
     if (roll <= 0) {
       return type;
     }
   }
 
-  return objectTypes[0];
+  return candidates[0] || types[0];
 }
 
-function spawnObject(options = {}) {
-  const type = options.type || chooseObjectType();
-  const speedBoost = Math.min(elapsed * 6.6, 320);
-  const sway =
-    options.sway ?? (type.id === "bill" ? 42 + Math.random() * 30 : 8 + Math.random() * 24);
+function getTypeById(types, id) {
+  return types.find((type) => type.id === id);
+}
+
+function chooseHazardType(options = {}) {
+  const excluded = options.exclude || [];
+  return chooseWeighted(hazardTypes.filter((type) => !excluded.includes(type.id)));
+}
+
+function spawnEntity(type, options = {}) {
+  const speedBoost = Math.min(elapsed * 6.2, 330);
+  const defaultSway = type.id === "bill" ? 42 + Math.random() * 32 : 6 + Math.random() * 22;
+  const size = options.size ?? type.size;
 
   objects.push({
     type,
-    x: options.x ?? type.size / 2 + Math.random() * (WIDTH - type.size),
-    y: options.y ?? -type.size,
-    size: type.size,
-    speed: (type.baseSpeed + speedBoost + Math.random() * 54) * (options.speedMultiplier ?? 1),
+    x: options.x ?? size / 2 + Math.random() * (WIDTH - size),
+    y: options.y ?? -size,
+    size,
+    speed: (type.baseSpeed + speedBoost + Math.random() * 52) * (options.speedMultiplier ?? 1),
     rotation: Math.random() * Math.PI * 2,
-    spin: (Math.random() - 0.5) * 2.4,
-    sway,
+    spin: (Math.random() - 0.5) * 2.2,
+    sway: options.sway ?? defaultSway,
     phase: Math.random() * Math.PI * 2,
+    nearMissed: false,
+    collected: false,
+  });
+}
+
+function spawnHazard(options = {}) {
+  spawnEntity(options.type || chooseHazardType(), options);
+}
+
+function spawnPickup() {
+  if (objects.filter((object) => object.type.kind === "pickup").length >= 2) {
+    return;
+  }
+
+  spawnEntity(chooseWeighted(pickupTypes), {
+    y: -70,
+    speedMultiplier: 0.74,
+    sway: 10 + Math.random() * 16,
   });
 }
 
 function spawnCurtain() {
   const gapLane = Math.floor(Math.random() * LANES);
+  const type = chooseHazardType({ exclude: ["coupon", "tax"] });
 
   for (let lane = 0; lane < LANES; lane += 1) {
     if (lane === gapLane) {
       continue;
     }
 
-    spawnObject({
+    spawnHazard({
+      type,
       x: laneCenter(lane),
-      y: -78 - Math.random() * 90,
-      speedMultiplier: 0.86,
-      sway: 6 + Math.random() * 14,
+      y: -82 - Math.random() * 100,
+      speedMultiplier: 0.82,
+      sway: 5 + Math.random() * 10,
+    });
+  }
+}
+
+function spawnSubscriptionStack() {
+  const type = getTypeById(hazardTypes, "subscription");
+  const x = laneCenter(Math.floor(Math.random() * LANES));
+
+  for (let i = 0; i < 3; i += 1) {
+    spawnHazard({
+      type,
+      x,
+      y: -70 - i * 74,
+      speedMultiplier: 0.82,
+      sway: 3,
     });
   }
 }
 
 function spawnWave() {
-  spawnObject();
+  spawnHazard();
 
-  if (elapsed > 6 && Math.random() < Math.min(0.7, 0.28 + elapsed * 0.01)) {
-    spawnObject({
-      y: -112 - Math.random() * 70,
-      speedMultiplier: 0.98,
+  if (elapsed > 8 && Math.random() < Math.min(0.68, 0.24 + elapsed * 0.01)) {
+    spawnHazard({
+      y: -112 - Math.random() * 80,
+      speedMultiplier: 0.95,
     });
   }
 
-  if (elapsed > 16 && Math.random() < Math.min(0.46, 0.1 + elapsed * 0.006)) {
-    spawnObject({
-      y: -184 - Math.random() * 90,
-      speedMultiplier: 0.92,
+  if (elapsed > 22 && Math.random() < Math.min(0.5, 0.12 + elapsed * 0.006)) {
+    spawnHazard({
+      y: -190 - Math.random() * 90,
+      speedMultiplier: 0.9,
     });
   }
 
-  if (elapsed > 30 && Math.random() < Math.min(0.34, elapsed * 0.004)) {
+  if (elapsed > 15 && Math.random() < 0.14) {
+    spawnSubscriptionStack();
+  }
+
+  if (elapsed > 45 && Math.random() < Math.min(0.34, elapsed * 0.004)) {
     spawnCurtain();
+  }
+
+  if (elapsed > 75 && Math.random() < 0.11) {
+    spawnHazard({
+      type: getTypeById(hazardTypes, "tax"),
+      x: laneCenter(Math.floor(Math.random() * LANES)),
+      y: -100,
+      speedMultiplier: 0.86,
+      sway: 4,
+    });
   }
 }
 
-function update(dt) {
-  elapsed += dt;
-  spawnTimer -= dt;
-
-  const spawnInterval = getSpawnInterval();
-  if (spawnTimer <= 0) {
-    spawnWave();
-    spawnTimer = spawnInterval * (0.88 + Math.random() * 0.24);
+function triggerDash() {
+  if (state !== "playing" || elapsed < dashCooldownUntil) {
+    return;
   }
 
+  dashDirection = lastMoveDirection || (player.x < WIDTH / 2 ? 1 : -1);
+  dashUntil = elapsed + DASH_DURATION;
+  dashCooldownUntil = elapsed + DASH_COOLDOWN;
+  addPopup("대시!", player.x, player.y - 54, "#76b7ff");
+  updateScoreUi();
+}
+
+function updatePlayer(dt) {
   const direction = Number(keys.right) - Number(keys.left);
+
   if (direction !== 0) {
-    setPlayerX(player.x + direction * player.speed * dt);
+    lastMoveDirection = direction;
+    dragTargetX = null;
+    const controlMultiplier = isSlippery() ? 0.58 : 1;
+    setPlayerX(player.x + direction * player.speed * controlMultiplier * dt);
   }
+
+  if (dragTargetX !== null) {
+    const followSpeed = isSlippery() ? 6 : 24;
+    const nextX = player.x + (dragTargetX - player.x) * Math.min(1, followSpeed * dt);
+    setPlayerX(nextX);
+  }
+
+  if (elapsed < dashUntil) {
+    setPlayerX(player.x + dashDirection * DASH_SPEED * dt);
+  }
+}
+
+function updateObjects(dt) {
+  const speedMultiplier = getGlobalSpeedMultiplier();
 
   for (const object of objects) {
-    object.y += object.speed * dt;
+    const pickupSlow = object.type.kind === "pickup" ? 0.86 : 1;
+    object.y += object.speed * speedMultiplier * pickupSlow * dt;
     object.rotation += object.spin * dt;
-    object.x += Math.sin(elapsed * 3.4 + object.phase) * object.sway * dt;
+    object.x += Math.sin(elapsed * 3.2 + object.phase) * object.sway * dt;
+    object.x = clamp(object.x, object.size * 0.38, WIDTH - object.size * 0.38);
+  }
+}
+
+function updatePopups(dt) {
+  for (const popup of popups) {
+    popup.life -= dt;
+    popup.y -= 34 * dt;
+  }
+  popups = popups.filter((popup) => popup.life > 0);
+}
+
+function collectPickup(object) {
+  object.collected = true;
+  savingsScore += object.type.value;
+
+  if (object.type.id === "piggy") {
+    invincibleUntil = Math.max(invincibleUntil, elapsed + object.type.duration);
+    addPopup("+저금통 무적", object.x, object.y, "#ff6e8d");
+  } else if (object.type.id === "ledger") {
+    slowUntil = Math.max(slowUntil, elapsed + object.type.duration);
+    addPopup("+가계부 느림", object.x, object.y, "#16a083");
+  } else if (object.type.id === "emergency") {
+    emergencyCharges += 1;
+    addPopup("+비상금", object.x, object.y, "#d89022");
+  } else if (object.type.id === "saveMode") {
+    saveModeUntil = Math.max(saveModeUntil, elapsed + object.type.duration);
+    addPopup("+절약모드", object.x, object.y, "#3f8fea");
+  } else if (object.type.id === "salary") {
+    salarySurgeUntil = Math.max(salarySurgeUntil, elapsed + object.type.duration);
+    addPopup("+월급! 후폭풍", object.x, object.y, "#e65f5c");
   }
 
-  objects = objects.filter((object) => object.y < HEIGHT + object.size);
+  addPopup(`저축 +${object.type.value}`, object.x, object.y - 22, "#28303f");
+}
 
-  if (objects.some(hasCollision)) {
-    finishGame();
+function handleHazardCollision(object) {
+  object.collected = true;
+
+  if (object.type.id === "coupon") {
+    savingsScore = Math.max(0, savingsScore - 5);
+    slipUntil = Math.max(slipUntil, elapsed + 2.7);
+    addPopup("쿠폰 함정!", object.x, object.y, "#e65f5c");
+    return;
   }
 
-  updateScoreUi();
+  if (isInvincible()) {
+    savingsScore += 1;
+    addPopup("방어!", object.x, object.y, "#76b7ff");
+    return;
+  }
+
+  if (emergencyCharges > 0) {
+    emergencyCharges -= 1;
+    addPopup("비상금 사용!", object.x, object.y, "#d89022");
+    return;
+  }
+
+  finishGame(object.type.label);
+}
+
+function checkCollisions() {
+  for (const object of objects) {
+    if (object.collected) {
+      continue;
+    }
+
+    if (hasCollision(object)) {
+      if (object.type.kind === "pickup") {
+        collectPickup(object);
+      } else {
+        handleHazardCollision(object);
+      }
+    } else {
+      maybeAwardNearMiss(object);
+    }
+  }
+
+  objects = objects.filter((object) => !object.collected && object.y < HEIGHT + object.size);
+}
+
+function maybeAwardNearMiss(object) {
+  if (object.type.kind === "pickup" || object.nearMissed) {
+    return;
+  }
+
+  const crossedPlayer = object.y > player.y - 18 && object.y < player.y + 36;
+  if (!crossedPlayer) {
+    return;
+  }
+
+  const safeDistance = player.width * 0.36 + object.size * getObjectHitScale(object) * 0.5;
+  const distance = Math.abs(object.x - player.x);
+
+  if (distance > safeDistance && distance < safeDistance + 38) {
+    object.nearMissed = true;
+    nearMissCount += 1;
+    savingsScore += 2;
+    addPopup("아슬 +2", (object.x + player.x) / 2, player.y - 44, "#ff9cb5");
+  }
+}
+
+function getObjectHitScale(object) {
+  if (object.type.kind === "pickup") {
+    return 0.86;
+  }
+  if (isSaveMode()) {
+    return 0.58;
+  }
+  return object.type.id === "tax" ? 0.74 : 0.78;
 }
 
 function hasCollision(object) {
   const playerHitbox = {
-    x: player.x - player.width * 0.36,
-    y: player.y - player.height * 0.46,
-    width: player.width * 0.72,
-    height: player.height * 0.82,
+    x: player.x - player.width * 0.34,
+    y: player.y - player.height * 0.44,
+    width: player.width * 0.68,
+    height: player.height * 0.78,
   };
 
+  const hitScale = getObjectHitScale(object);
   const objectHitbox = {
-    x: object.x - object.size * 0.4,
-    y: object.y - object.size * 0.4,
-    width: object.size * 0.8,
-    height: object.size * 0.8,
+    x: object.x - object.size * hitScale * 0.5,
+    y: object.y - object.size * hitScale * 0.5,
+    width: object.size * hitScale,
+    height: object.size * hitScale,
   };
 
   return (
@@ -276,11 +732,33 @@ function hasCollision(object) {
   );
 }
 
+function update(dt) {
+  elapsed += dt;
+  spawnTimer -= dt;
+  pickupTimer -= dt;
+
+  if (spawnTimer <= 0) {
+    spawnWave();
+    spawnTimer = getSpawnInterval() * (0.88 + Math.random() * 0.24);
+  }
+
+  if (pickupTimer <= 0) {
+    spawnPickup();
+    pickupTimer = Math.max(4.4, 7.4 - elapsed * 0.018) + Math.random() * 2.2;
+  }
+
+  updatePlayer(dt);
+  updateObjects(dt);
+  checkCollisions();
+  updatePopups(dt);
+  updateScoreUi();
+}
+
 function drawBackground() {
   const gradient = ctx.createLinearGradient(0, 0, 0, HEIGHT);
-  gradient.addColorStop(0, "#fff9df");
+  gradient.addColorStop(0, elapsed < salarySurgeUntil ? "#fff0c9" : "#fff9df");
   gradient.addColorStop(0.58, "#ddf7ec");
-  gradient.addColorStop(1, "#ffe8f0");
+  gradient.addColorStop(1, elapsed < slipUntil ? "#ffe1e7" : "#ffe8f0");
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, WIDTH, HEIGHT);
 
@@ -299,9 +777,53 @@ function drawBackground() {
   ctx.fillRect(0, HEIGHT - 26, WIDTH, 3);
 }
 
+function drawStatusChips() {
+  const chips = [];
+  if (elapsed < invincibleUntil) {
+    chips.push(`저금통 ${Math.ceil(invincibleUntil - elapsed)}초`);
+  }
+  if (elapsed < slowUntil) {
+    chips.push(`가계부 ${Math.ceil(slowUntil - elapsed)}초`);
+  }
+  if (emergencyCharges > 0) {
+    chips.push(`비상금 ${emergencyCharges}`);
+  }
+  if (elapsed < saveModeUntil) {
+    chips.push(`절약모드 ${Math.ceil(saveModeUntil - elapsed)}초`);
+  }
+  if (elapsed < slipUntil) {
+    chips.push(`쿠폰 미끄럼 ${Math.ceil(slipUntil - elapsed)}초`);
+  }
+  if (elapsed < salarySurgeUntil) {
+    chips.push(`월급 후폭풍 ${Math.ceil(salarySurgeUntil - elapsed)}초`);
+  }
+
+  let y = 16;
+  for (const chip of chips.slice(0, 4)) {
+    ctx.font = "900 13px sans-serif";
+    const width = ctx.measureText(chip).width + 20;
+    ctx.fillStyle = "rgba(255, 253, 247, 0.86)";
+    roundRect(14, y, width, 26, 13);
+    ctx.fill();
+    ctx.fillStyle = "#28303f";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+    ctx.fillText(chip, 24, y + 13);
+    y += 31;
+  }
+}
+
 function drawPlayer() {
   ctx.save();
   ctx.translate(player.x, player.y);
+
+  if (isInvincible()) {
+    ctx.strokeStyle = "rgba(118, 183, 255, 0.82)";
+    ctx.lineWidth = 5;
+    ctx.beginPath();
+    ctx.ellipse(0, -2, 42, 58, 0, 0, Math.PI * 2);
+    ctx.stroke();
+  }
 
   ctx.fillStyle = "rgba(40, 48, 63, 0.14)";
   ctx.beginPath();
@@ -396,15 +918,76 @@ function drawObject(object) {
   ctx.translate(object.x, object.y);
   ctx.rotate(object.rotation);
 
-  if (object.type.id === "coffee") {
-    drawCoffee(object);
-  } else if (object.type.id === "delivery") {
-    drawDelivery(object);
-  } else {
-    drawBill(object);
+  if (object.type.kind !== "pickup" && isSaveMode()) {
+    ctx.scale(0.85, 0.85);
+  }
+
+  switch (object.type.id) {
+    case "coin":
+      drawCoin(object);
+      break;
+    case "coffee":
+      drawCoffee(object);
+      break;
+    case "delivery":
+      drawDelivery(object);
+      break;
+    case "bill":
+      drawBill(object);
+      break;
+    case "subscription":
+      drawSubscription(object);
+      break;
+    case "cash":
+      drawCash(object);
+      break;
+    case "coupon":
+      drawCoupon(object);
+      break;
+    case "tax":
+      drawTax(object);
+      break;
+    case "piggy":
+      drawPiggy(object);
+      break;
+    case "ledger":
+      drawLedger(object);
+      break;
+    case "emergency":
+      drawEmergency(object);
+      break;
+    case "saveMode":
+      drawSaveMode(object);
+      break;
+    case "salary":
+      drawSalary(object);
+      break;
+    default:
+      drawCoin(object);
   }
 
   ctx.restore();
+}
+
+function drawCoin(object) {
+  const s = object.size;
+  ctx.fillStyle = "rgba(40, 48, 63, 0.12)";
+  ctx.beginPath();
+  ctx.arc(3, 4, s * 0.44, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = object.type.color;
+  ctx.beginPath();
+  ctx.arc(0, 0, s * 0.44, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = object.type.accent;
+  ctx.beginPath();
+  ctx.arc(0, 0, s * 0.28, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "#8d6423";
+  ctx.font = `900 ${s * 0.42}px sans-serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText("₩", 0, 1);
 }
 
 function drawCoffee(object) {
@@ -463,10 +1046,204 @@ function drawBill(object) {
   ctx.fillText("카드값", 0, s * 0.09);
 }
 
+function drawSubscription(object) {
+  const s = object.size;
+  ctx.fillStyle = "rgba(40, 48, 63, 0.12)";
+  roundRect(-s * 0.38 + 3, -s * 0.38 + 4, s * 0.76, s * 0.76, 12);
+  ctx.fill();
+  ctx.fillStyle = object.type.color;
+  roundRect(-s * 0.38, -s * 0.4, s * 0.76, s * 0.8, 12);
+  ctx.fill();
+  ctx.fillStyle = object.type.accent;
+  ctx.fillRect(-s * 0.24, -s * 0.2, s * 0.48, 4);
+  ctx.fillRect(-s * 0.24, -s * 0.04, s * 0.48, 4);
+  ctx.fillStyle = "#ffffff";
+  ctx.font = `900 ${s * 0.17}px sans-serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText("구독", 0, s * 0.18);
+}
+
+function drawCash(object) {
+  const s = object.size;
+  ctx.fillStyle = "rgba(40, 48, 63, 0.12)";
+  roundRect(-s * 0.48 + 4, -s * 0.26 + 4, s * 0.96, s * 0.52, 8);
+  ctx.fill();
+  ctx.fillStyle = object.type.color;
+  roundRect(-s * 0.48, -s * 0.26, s * 0.96, s * 0.52, 8);
+  ctx.fill();
+  ctx.fillStyle = object.type.accent;
+  ctx.beginPath();
+  ctx.ellipse(0, 0, s * 0.2, s * 0.14, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "#2f7343";
+  ctx.font = `900 ${s * 0.16}px sans-serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText("지폐", 0, 1);
+}
+
+function drawCoupon(object) {
+  const s = object.size;
+  ctx.fillStyle = "rgba(40, 48, 63, 0.12)";
+  roundRect(-s * 0.48 + 3, -s * 0.28 + 4, s * 0.96, s * 0.56, 8);
+  ctx.fill();
+  ctx.fillStyle = object.type.color;
+  roundRect(-s * 0.48, -s * 0.28, s * 0.96, s * 0.56, 8);
+  ctx.fill();
+  ctx.fillStyle = object.type.accent;
+  ctx.fillRect(-s * 0.46, -s * 0.05, s * 0.92, 4);
+  ctx.fillStyle = "#7d3e28";
+  ctx.font = `900 ${s * 0.17}px sans-serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText("쿠폰", 0, 0);
+}
+
+function drawTax(object) {
+  const s = object.size;
+  ctx.fillStyle = "rgba(40, 48, 63, 0.16)";
+  roundRect(-s * 0.44 + 5, -s * 0.36 + 5, s * 0.88, s * 0.72, 10);
+  ctx.fill();
+  ctx.fillStyle = object.type.color;
+  roundRect(-s * 0.44, -s * 0.36, s * 0.88, s * 0.72, 10);
+  ctx.fill();
+  ctx.fillStyle = object.type.accent;
+  ctx.beginPath();
+  ctx.moveTo(-s * 0.34, -s * 0.24);
+  ctx.lineTo(0, 0);
+  ctx.lineTo(s * 0.34, -s * 0.24);
+  ctx.lineTo(s * 0.34, s * 0.22);
+  ctx.lineTo(-s * 0.34, s * 0.22);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = "#8b2624";
+  ctx.font = `900 ${s * 0.17}px sans-serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText("세금", 0, s * 0.08);
+}
+
+function drawPiggy(object) {
+  const s = object.size;
+  ctx.fillStyle = "rgba(40, 48, 63, 0.12)";
+  ctx.beginPath();
+  ctx.ellipse(3, 4, s * 0.42, s * 0.3, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = object.type.color;
+  ctx.beginPath();
+  ctx.ellipse(0, 0, s * 0.43, s * 0.31, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = object.type.accent;
+  ctx.beginPath();
+  ctx.arc(s * 0.34, -s * 0.04, s * 0.15, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "#5d3141";
+  ctx.fillRect(-s * 0.16, -s * 0.24, s * 0.32, 4);
+  ctx.beginPath();
+  ctx.arc(-s * 0.08, -s * 0.04, 2, 0, Math.PI * 2);
+  ctx.arc(s * 0.38, -s * 0.04, 2, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function drawLedger(object) {
+  const s = object.size;
+  ctx.fillStyle = "rgba(40, 48, 63, 0.12)";
+  roundRect(-s * 0.36 + 3, -s * 0.42 + 4, s * 0.72, s * 0.84, 8);
+  ctx.fill();
+  ctx.fillStyle = object.type.color;
+  roundRect(-s * 0.36, -s * 0.42, s * 0.72, s * 0.84, 8);
+  ctx.fill();
+  ctx.fillStyle = object.type.accent;
+  ctx.fillRect(-s * 0.2, -s * 0.18, s * 0.4, 4);
+  ctx.fillRect(-s * 0.2, 0, s * 0.4, 4);
+  ctx.fillStyle = "#1c6d61";
+  ctx.font = `900 ${s * 0.16}px sans-serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText("가계", 0, s * 0.2);
+}
+
+function drawEmergency(object) {
+  const s = object.size;
+  ctx.fillStyle = "rgba(40, 48, 63, 0.12)";
+  roundRect(-s * 0.36 + 3, -s * 0.26 + 4, s * 0.72, s * 0.62, 12);
+  ctx.fill();
+  ctx.fillStyle = object.type.color;
+  roundRect(-s * 0.36, -s * 0.3, s * 0.72, s * 0.66, 12);
+  ctx.fill();
+  ctx.fillStyle = "#a76b19";
+  ctx.font = `900 ${s * 0.17}px sans-serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText("비상", 0, s * 0.04);
+}
+
+function drawSaveMode(object) {
+  const s = object.size;
+  ctx.fillStyle = "rgba(40, 48, 63, 0.12)";
+  ctx.beginPath();
+  ctx.ellipse(3, 4, s * 0.36, s * 0.42, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = object.type.color;
+  ctx.beginPath();
+  ctx.moveTo(0, -s * 0.45);
+  ctx.lineTo(s * 0.34, -s * 0.22);
+  ctx.lineTo(s * 0.26, s * 0.32);
+  ctx.lineTo(0, s * 0.48);
+  ctx.lineTo(-s * 0.26, s * 0.32);
+  ctx.lineTo(-s * 0.34, -s * 0.22);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = object.type.accent;
+  ctx.font = `900 ${s * 0.16}px sans-serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText("절약", 0, s * 0.02);
+}
+
+function drawSalary(object) {
+  const s = object.size;
+  ctx.fillStyle = "rgba(40, 48, 63, 0.12)";
+  roundRect(-s * 0.42 + 4, -s * 0.28 + 4, s * 0.84, s * 0.6, 10);
+  ctx.fill();
+  ctx.fillStyle = object.type.color;
+  roundRect(-s * 0.42, -s * 0.3, s * 0.84, s * 0.62, 10);
+  ctx.fill();
+  ctx.fillStyle = object.type.accent;
+  ctx.beginPath();
+  ctx.arc(0, 0, s * 0.2, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "#872528";
+  ctx.font = `900 ${s * 0.17}px sans-serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText("월급", 0, s * 0.02);
+}
+
+function drawPopups() {
+  for (const popup of popups) {
+    ctx.save();
+    ctx.globalAlpha = clamp(popup.life / popup.maxLife, 0, 1);
+    ctx.font = "900 18px sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = "rgba(255, 253, 247, 0.82)";
+    const width = ctx.measureText(popup.text).width + 20;
+    roundRect(popup.x - width / 2, popup.y - 16, width, 32, 16);
+    ctx.fill();
+    ctx.fillStyle = popup.color;
+    ctx.fillText(popup.text, popup.x, popup.y);
+    ctx.restore();
+  }
+}
+
 function draw() {
   drawBackground();
   objects.forEach(drawObject);
   drawPlayer();
+  drawStatusChips();
+  drawPopups();
 }
 
 function loop(timestamp) {
@@ -510,12 +1287,18 @@ function setMove(direction, isPressed) {
 
 window.addEventListener("keydown", (event) => {
   let handled = false;
-  if (event.key === "ArrowLeft" || event.key.toLowerCase() === "a") {
+  const key = event.key.toLowerCase();
+
+  if (event.key === "ArrowLeft" || key === "a") {
     setMove("left", true);
     handled = true;
   }
-  if (event.key === "ArrowRight" || event.key.toLowerCase() === "d") {
+  if (event.key === "ArrowRight" || key === "d") {
     setMove("right", true);
+    handled = true;
+  }
+  if ((event.key === " " || event.key === "Shift") && state === "playing") {
+    triggerDash();
     handled = true;
   }
   if ((event.key === " " || event.key === "Enter") && state !== "playing") {
@@ -529,11 +1312,13 @@ window.addEventListener("keydown", (event) => {
 
 window.addEventListener("keyup", (event) => {
   let handled = false;
-  if (event.key === "ArrowLeft" || event.key.toLowerCase() === "a") {
+  const key = event.key.toLowerCase();
+
+  if (event.key === "ArrowLeft" || key === "a") {
     setMove("left", false);
     handled = true;
   }
-  if (event.key === "ArrowRight" || event.key.toLowerCase() === "d") {
+  if (event.key === "ArrowRight" || key === "d") {
     setMove("right", false);
     handled = true;
   }
@@ -542,10 +1327,16 @@ window.addEventListener("keyup", (event) => {
   }
 });
 
+window.addEventListener("blur", () => {
+  keys.left = false;
+  keys.right = false;
+});
+
 function bindHoldButton(button, direction) {
   button.addEventListener("pointerdown", (event) => {
     event.preventDefault();
     button.setPointerCapture(event.pointerId);
+    dragTargetX = null;
     setMove(direction, true);
   });
   button.addEventListener("pointerup", () => setMove(direction, false));
@@ -576,6 +1367,7 @@ canvas.addEventListener("pointermove", (event) => {
 function endCanvasDrag(event) {
   if (event.pointerId === activeDragPointerId) {
     activeDragPointerId = null;
+    lastPointerX = null;
   }
 }
 
@@ -584,6 +1376,7 @@ canvas.addEventListener("pointercancel", endCanvasDrag);
 canvas.addEventListener("lostpointercapture", endCanvasDrag);
 
 startButton.addEventListener("click", resetGame);
+dashButton.addEventListener("click", triggerDash);
 bindHoldButton(leftButton, "left");
 bindHoldButton(rightButton, "right");
 
