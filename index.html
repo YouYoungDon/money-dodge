@@ -37,6 +37,17 @@
               <p id="overlayKicker">귀여운 절약 챌린지</p>
               <h2 id="overlayTitle">지출 폭탄을 피해요!</h2>
               <p id="overlayText">커피, 배달음식, 카드값을 피하며 오래 버티세요.</p>
+              <label class="nickname-field" for="nicknameInput">
+                <span>닉네임</span>
+                <input id="nicknameInput" type="text" maxlength="10" autocomplete="nickname" />
+              </label>
+              <section class="leaderboard" aria-label="돈피하기 순위">
+                <div class="leaderboard-head">
+                  <span>순위</span>
+                  <button id="clearLeaderboardButton" type="button">초기화</button>
+                </div>
+                <ol id="leaderboardList"></ol>
+              </section>
               <button id="startButton" type="button">시작하기</button>
             </div>
           </div>

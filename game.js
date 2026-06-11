@@ -12,11 +12,17 @@ const startButton = document.querySelector("#startButton");
 const leftButton = document.querySelector("#leftButton");
 const rightButton = document.querySelector("#rightButton");
 const dashButton = document.querySelector("#dashButton");
+const nicknameInput = document.querySelector("#nicknameInput");
+const leaderboardList = document.querySelector("#leaderboardList");
+const clearLeaderboardButton = document.querySelector("#clearLeaderboardButton");
 
 const WIDTH = canvas.width;
 const HEIGHT = canvas.height;
 const LANES = 5;
 const HIGH_SCORE_KEY = "donpihagi.highScore";
+const PLAYER_NAME_KEY = "donpihagi.playerName";
+const LEADERBOARD_KEY = "donpihagi.leaderboard";
+const LEADERBOARD_LIMIT = 5;
 
 const DASH_SPEED = 1180;
 const DASH_DURATION = 0.16;
@@ -217,6 +223,9 @@ let popups = [];
 let savingsScore = 0;
 let nearMissCount = 0;
 let bestScore = Number(localStorage.getItem(HIGH_SCORE_KEY) || 0);
+let playerName = normalizeName(localStorage.getItem(PLAYER_NAME_KEY) || "절약러");
+let leaderboard = loadLeaderboard();
+let latestLeaderboardId = null;
 let lastRunWasRecord = false;
 let lastCollisionLabel = "";
 
@@ -240,6 +249,113 @@ let walkPhase = 0;
 
 function formatSeconds(seconds) {
   return `${seconds.toFixed(1)}초`;
+}
+
+function normalizeName(name) {
+  const normalized = String(name || "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 10);
+  return normalized || "절약러";
+}
+
+function loadLeaderboard() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(LEADERBOARD_KEY) || "[]");
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+    return parsed
+      .filter((entry) => entry && typeof entry.seconds === "number")
+      .map((entry) => ({
+        id: String(entry.id || makeLeaderboardId()),
+        name: normalizeName(entry.name),
+        seconds: Math.max(0, Number(entry.seconds) || 0),
+        savings: Math.max(0, Number(entry.savings) || 0),
+        nearMisses: Math.max(0, Number(entry.nearMisses) || 0),
+        createdAt: Number(entry.createdAt) || Date.now(),
+      }))
+      .sort(compareLeaderboardEntries)
+      .slice(0, LEADERBOARD_LIMIT);
+  } catch {
+    return [];
+  }
+}
+
+function saveLeaderboard() {
+  localStorage.setItem(LEADERBOARD_KEY, JSON.stringify(leaderboard));
+}
+
+function compareLeaderboardEntries(a, b) {
+  if (b.seconds !== a.seconds) {
+    return b.seconds - a.seconds;
+  }
+  if (b.savings !== a.savings) {
+    return b.savings - a.savings;
+  }
+  if (b.nearMisses !== a.nearMisses) {
+    return b.nearMisses - a.nearMisses;
+  }
+  return a.createdAt - b.createdAt;
+}
+
+function makeLeaderboardId() {
+  if (globalThis.crypto?.randomUUID) {
+    return globalThis.crypto.randomUUID();
+  }
+  return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function recordLeaderboardEntry() {
+  const entry = {
+    id: makeLeaderboardId(),
+    name: playerName,
+    seconds: Number(elapsed.toFixed(1)),
+    savings: savingsScore,
+    nearMisses: nearMissCount,
+    createdAt: Date.now(),
+  };
+  latestLeaderboardId = entry.id;
+  leaderboard = [...leaderboard, entry]
+    .sort(compareLeaderboardEntries)
+    .slice(0, LEADERBOARD_LIMIT);
+  saveLeaderboard();
+  renderLeaderboard();
+}
+
+function renderLeaderboard() {
+  leaderboardList.textContent = "";
+
+  if (leaderboard.length === 0) {
+    const empty = document.createElement("li");
+    empty.className = "leaderboard-empty";
+    empty.textContent = "아직 기록이 없어요";
+    leaderboardList.append(empty);
+    return;
+  }
+
+  leaderboard.forEach((entry, index) => {
+    const row = document.createElement("li");
+    row.className = "leaderboard-row";
+    if (entry.id === latestLeaderboardId) {
+      row.classList.add("is-latest");
+    }
+
+    const rank = document.createElement("span");
+    rank.className = "leaderboard-rank";
+    rank.textContent = `${index + 1}`;
+
+    const name = document.createElement("span");
+    name.className = "leaderboard-name";
+    name.textContent = entry.name;
+
+    const score = document.createElement("span");
+    score.className = "leaderboard-score";
+    score.textContent = `${formatSeconds(entry.seconds)} · ${entry.savings}점`;
+
+    row.append(rank, name, score);
+    leaderboardList.append(row);
+  });
 }
 
 function clamp(value, min, max) {
@@ -382,6 +498,7 @@ function getResultLine() {
 
 function showOverlay(mode) {
   overlay.classList.remove("hidden");
+  renderLeaderboard();
 
   if (mode === "gameover") {
     const isRecord = lastRunWasRecord;
@@ -448,6 +565,7 @@ function finishGame(label) {
     bestScore = elapsed;
     localStorage.setItem(HIGH_SCORE_KEY, String(bestScore));
   }
+  recordLeaderboardEntry();
   updateScoreUi();
   showOverlay("gameover");
 }
@@ -1439,6 +1557,10 @@ function setMove(direction, isPressed) {
 }
 
 window.addEventListener("keydown", (event) => {
+  if (event.target === nicknameInput) {
+    return;
+  }
+
   let handled = false;
   const key = event.key.toLowerCase();
 
@@ -1532,6 +1654,22 @@ startButton.addEventListener("click", resetGame);
 dashButton.addEventListener("click", triggerDash);
 bindHoldButton(leftButton, "left");
 bindHoldButton(rightButton, "right");
+
+nicknameInput.value = playerName;
+nicknameInput.addEventListener("input", () => {
+  playerName = normalizeName(nicknameInput.value);
+  localStorage.setItem(PLAYER_NAME_KEY, playerName);
+});
+nicknameInput.addEventListener("blur", () => {
+  nicknameInput.value = playerName;
+});
+
+clearLeaderboardButton.addEventListener("click", () => {
+  leaderboard = [];
+  latestLeaderboardId = null;
+  saveLeaderboard();
+  renderLeaderboard();
+});
 
 updateScoreUi();
 showOverlay("ready");
