@@ -17,3 +17,7 @@ Open `index.html` in a browser.
 - Move right: `→` or `D`
 - Mobile/touch: drag your finger across the play area
 - Dash: `Space`, `Shift`, or the dash button. You start with 5 dashes, then collect blue dash tokens to stock up with no cap.
+
+## Difficulty
+
+Choose `쉬움`, `보통`, or `어려움` before starting. Easier modes slow hazards and give helper items more often; harder modes do the opposite.

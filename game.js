@@ -13,6 +13,7 @@ const leftButton = document.querySelector("#leftButton");
 const rightButton = document.querySelector("#rightButton");
 const dashButton = document.querySelector("#dashButton");
 const nicknameInput = document.querySelector("#nicknameInput");
+const difficultyButtons = Array.from(document.querySelectorAll(".difficulty-button"));
 const leaderboardList = document.querySelector("#leaderboardList");
 const clearLeaderboardButton = document.querySelector("#clearLeaderboardButton");
 
@@ -22,12 +23,34 @@ const LANES = 5;
 const HIGH_SCORE_KEY = "donpihagi.highScore";
 const PLAYER_NAME_KEY = "donpihagi.playerName";
 const LEADERBOARD_KEY = "donpihagi.leaderboard";
+const DIFFICULTY_KEY = "donpihagi.difficulty";
 const LEADERBOARD_LIMIT = 100;
 
 const DASH_SPEED = 1180;
 const DASH_DURATION = 0.16;
 const DASH_COOLDOWN = 1.45;
 const STARTING_DASH_CHARGES = 5;
+
+const difficultyProfiles = {
+  easy: {
+    label: "쉬움",
+    hazardSpeed: 0.78,
+    spawnInterval: 1.24,
+    pickupInterval: 0.74,
+  },
+  normal: {
+    label: "보통",
+    hazardSpeed: 1,
+    spawnInterval: 1,
+    pickupInterval: 1,
+  },
+  hard: {
+    label: "어려움",
+    hazardSpeed: 1.18,
+    spawnInterval: 0.82,
+    pickupInterval: 1.18,
+  },
+};
 
 const keys = {
   left: false,
@@ -235,6 +258,7 @@ let savingsScore = 0;
 let nearMissCount = 0;
 let bestScore = Number(localStorage.getItem(HIGH_SCORE_KEY) || 0);
 let playerName = normalizeName(localStorage.getItem(PLAYER_NAME_KEY) || "절약러");
+let selectedDifficulty = normalizeDifficulty(localStorage.getItem(DIFFICULTY_KEY));
 let leaderboard = loadLeaderboard();
 let latestLeaderboardId = null;
 let lastRunWasRecord = false;
@@ -270,6 +294,28 @@ function normalizeName(name) {
   return normalized || "절약러";
 }
 
+function normalizeDifficulty(difficulty) {
+  return difficultyProfiles[difficulty] ? difficulty : "normal";
+}
+
+function getDifficultyProfile() {
+  return difficultyProfiles[selectedDifficulty];
+}
+
+function setDifficulty(difficulty) {
+  selectedDifficulty = normalizeDifficulty(difficulty);
+  localStorage.setItem(DIFFICULTY_KEY, selectedDifficulty);
+  renderDifficultyButtons();
+}
+
+function renderDifficultyButtons() {
+  for (const button of difficultyButtons) {
+    const isActive = button.dataset.difficulty === selectedDifficulty;
+    button.classList.toggle("is-active", isActive);
+    button.setAttribute("aria-pressed", String(isActive));
+  }
+}
+
 function loadLeaderboard() {
   try {
     const parsed = JSON.parse(localStorage.getItem(LEADERBOARD_KEY) || "[]");
@@ -284,6 +330,7 @@ function loadLeaderboard() {
         seconds: Math.max(0, Number(entry.seconds) || 0),
         savings: Math.max(0, Number(entry.savings) || 0),
         nearMisses: Math.max(0, Number(entry.nearMisses) || 0),
+        difficulty: normalizeDifficulty(entry.difficulty),
         createdAt: Number(entry.createdAt) || Date.now(),
       }))
       .sort(compareLeaderboardEntries)
@@ -324,6 +371,7 @@ function recordLeaderboardEntry() {
     seconds: Number(elapsed.toFixed(1)),
     savings: savingsScore,
     nearMisses: nearMissCount,
+    difficulty: selectedDifficulty,
     createdAt: Date.now(),
   };
   latestLeaderboardId = entry.id;
@@ -362,7 +410,7 @@ function renderLeaderboard() {
 
     const score = document.createElement("span");
     score.className = "leaderboard-score";
-    score.textContent = `${formatSeconds(entry.seconds)} · ${entry.savings}점`;
+    score.textContent = `${difficultyProfiles[entry.difficulty].label} · ${formatSeconds(entry.seconds)} · ${entry.savings}점`;
 
     row.append(rank, name, score);
     leaderboardList.append(row);
@@ -404,7 +452,7 @@ function isSaveMode() {
 }
 
 function getGlobalSpeedMultiplier() {
-  let multiplier = 1;
+  let multiplier = getDifficultyProfile().hazardSpeed;
   if (elapsed < slowUntil) {
     multiplier *= 0.56;
   }
@@ -439,16 +487,26 @@ function laneCenter(index) {
 }
 
 function getSpawnInterval() {
+  const difficultyMultiplier = getDifficultyProfile().spawnInterval;
+  let interval;
+
   if (elapsed < 15) {
-    return Math.max(0.36, 0.68 - elapsed * 0.006);
+    interval = Math.max(0.36, 0.68 - elapsed * 0.006);
+    return interval * difficultyMultiplier;
   }
   if (elapsed < 45) {
-    return Math.max(0.24, 0.54 - (elapsed - 15) * 0.007);
+    interval = Math.max(0.24, 0.54 - (elapsed - 15) * 0.007);
+    return interval * difficultyMultiplier;
   }
   if (elapsed < 75) {
-    return Math.max(0.2, 0.34 - (elapsed - 45) * 0.0025);
+    interval = Math.max(0.2, 0.34 - (elapsed - 45) * 0.0025);
+    return interval * difficultyMultiplier;
   }
-  return 0.18;
+  return 0.18 * difficultyMultiplier;
+}
+
+function getPickupInterval() {
+  return (Math.max(4.4, 7.4 - elapsed * 0.018) + Math.random() * 2.2) * getDifficultyProfile().pickupInterval;
 }
 
 function updateScoreUi() {
@@ -522,7 +580,7 @@ function showOverlay(mode) {
   }
 
   overlayKicker.textContent = "월급날 생존 챌린지";
-  overlayTitle.textContent = "잔고를 지켜요!";
+  overlayTitle.textContent = `${getDifficultyProfile().label} 모드로 잔고를 지켜요!`;
   overlayText.textContent =
     `소비 유혹은 피하고, 대시는 기본 ${STARTING_DASH_CHARGES}번! 파란 대시 토큰을 먹으면 계속 충전돼요.`;
   startButton.textContent = "시작하기";
@@ -539,7 +597,7 @@ function resetGame() {
   lastTime = 0;
   elapsed = 0;
   spawnTimer = 0;
-  pickupTimer = 4.4;
+  pickupTimer = getPickupInterval();
   objects = [];
   popups = [];
   savingsScore = 0;
@@ -1013,7 +1071,7 @@ function update(dt) {
 
   if (pickupTimer <= 0) {
     spawnPickup();
-    pickupTimer = Math.max(4.4, 7.4 - elapsed * 0.018) + Math.random() * 2.2;
+    pickupTimer = getPickupInterval();
   }
 
   updatePlayer(dt);
@@ -1696,6 +1754,11 @@ nicknameInput.addEventListener("input", () => {
 nicknameInput.addEventListener("blur", () => {
   nicknameInput.value = playerName;
 });
+
+difficultyButtons.forEach((button) => {
+  button.addEventListener("click", () => setDifficulty(button.dataset.difficulty));
+});
+renderDifficultyButtons();
 
 clearLeaderboardButton.addEventListener("click", () => {
   leaderboard = [];

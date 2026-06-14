@@ -204,6 +204,42 @@ canvas:active {
   box-shadow: 0 0 0 4px rgba(230, 109, 142, 0.12);
 }
 
+.difficulty-field {
+  margin: 14px 0 0;
+  border: 0;
+  padding: 0;
+  text-align: left;
+}
+
+.difficulty-field legend {
+  margin-bottom: 7px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.difficulty-options {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+.difficulty-button {
+  min-height: 38px;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  background: #ffffffd9;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.difficulty-button.is-active {
+  border-color: rgba(230, 109, 142, 0.5);
+  background: linear-gradient(135deg, rgba(255, 211, 111, 0.72), rgba(255, 156, 181, 0.58));
+  color: #392717;
+}
+
 .leaderboard {
   margin-top: 14px;
   border: 1px solid var(--line);
