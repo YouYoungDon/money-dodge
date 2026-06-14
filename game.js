@@ -28,7 +28,6 @@ const DASH_SPEED = 1180;
 const DASH_DURATION = 0.16;
 const DASH_COOLDOWN = 1.45;
 const STARTING_DASH_CHARGES = 5;
-const MAX_DASH_CHARGES = 8;
 
 const keys = {
   left: false,
@@ -447,7 +446,7 @@ function updateScoreUi() {
 
   if (state !== "playing") {
     dashButton.disabled = false;
-    dashButton.textContent = `대시 ${STARTING_DASH_CHARGES}/${MAX_DASH_CHARGES}`;
+    dashButton.textContent = `대시 ${STARTING_DASH_CHARGES}`;
     return;
   }
 
@@ -455,8 +454,8 @@ function updateScoreUi() {
   dashButton.disabled = cooldown > 0 || dashCharges <= 0;
   dashButton.textContent =
     cooldown > 0
-      ? `대시 ${dashCharges}/${MAX_DASH_CHARGES} · ${cooldown.toFixed(1)}`
-      : `대시 ${dashCharges}/${MAX_DASH_CHARGES}`;
+      ? `대시 ${dashCharges} · ${cooldown.toFixed(1)}`
+      : `대시 ${dashCharges}`;
 }
 
 function getGrade() {
@@ -513,7 +512,7 @@ function showOverlay(mode) {
   overlayKicker.textContent = "월급날 생존 챌린지";
   overlayTitle.textContent = "잔고를 지켜요!";
   overlayText.textContent =
-    `소비 유혹은 피하고, 대시는 기본 ${STARTING_DASH_CHARGES}번! 파란 대시 토큰으로 ${MAX_DASH_CHARGES}개까지 채울 수 있어요.`;
+    `소비 유혹은 피하고, 대시는 기본 ${STARTING_DASH_CHARGES}번! 파란 대시 토큰을 먹으면 계속 충전돼요.`;
   startButton.textContent = "시작하기";
   updateScoreUi();
 }
@@ -842,13 +841,8 @@ function collectPickup(object) {
     saveModeUntil = Math.max(saveModeUntil, elapsed + object.type.duration);
     addPopup("+절약모드", object.x, object.y, "#3f8fea");
   } else if (object.type.id === "dash") {
-    if (dashCharges < MAX_DASH_CHARGES) {
-      dashCharges += 1;
-      addPopup("+대시 1", object.x, object.y, "#2563eb");
-    } else {
-      savingsScore += 5;
-      addPopup("대시 가득 · 저축+5", object.x, object.y, "#2563eb");
-    }
+    dashCharges += 1;
+    addPopup("+대시 1", object.x, object.y, "#2563eb");
   } else if (object.type.id === "salary") {
     salarySurgeUntil = Math.max(salarySurgeUntil, elapsed + object.type.duration);
     addPopup("+월급! 후폭풍", object.x, object.y, "#e65f5c");

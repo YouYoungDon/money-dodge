@@ -15,4 +15,4 @@ Open `index.html` in a browser.
 - Move left: `←` or `A`
 - Move right: `→` or `D`
 - Mobile/touch: drag your finger across the play area
-- Dash: `Space`, `Shift`, or the dash button. You start with 5 dashes, then collect blue dash tokens to stock up to 8.
+- Dash: `Space`, `Shift`, or the dash button. You start with 5 dashes, then collect blue dash tokens to stock up with no cap.
