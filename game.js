@@ -22,7 +22,7 @@ const LANES = 5;
 const HIGH_SCORE_KEY = "donpihagi.highScore";
 const PLAYER_NAME_KEY = "donpihagi.playerName";
 const LEADERBOARD_KEY = "donpihagi.leaderboard";
-const LEADERBOARD_LIMIT = 5;
+const LEADERBOARD_LIMIT = 100;
 
 const DASH_SPEED = 1180;
 const DASH_DURATION = 0.16;
