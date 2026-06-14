@@ -28,8 +28,11 @@ const LEADERBOARD_LIMIT = 100;
 
 const DASH_SPEED = 1180;
 const DASH_DURATION = 0.16;
+const DASH_INVINCIBLE_AFTER = 1;
 const DASH_COOLDOWN = 1.45;
 const STARTING_DASH_CHARGES = 5;
+const SAVE_MODE_VISUAL_SCALE = 0.58;
+const SAVE_MODE_HIT_SCALE = 0.46;
 
 const difficultyProfiles = {
   easy: {
@@ -275,6 +278,7 @@ let saveModeUntil = 0;
 let salarySurgeUntil = 0;
 let emergencyCharges = 0;
 let dashUntil = 0;
+let dashInvincibleUntil = 0;
 let dashCooldownUntil = 0;
 let dashDirection = 1;
 let dashCharges = STARTING_DASH_CHARGES;
@@ -440,7 +444,7 @@ function recordPlayerMovement(deltaX, dt = 1 / 60) {
 }
 
 function isInvincible() {
-  return elapsed < invincibleUntil || elapsed < dashUntil;
+  return elapsed < invincibleUntil || elapsed < dashUntil || elapsed < dashInvincibleUntil;
 }
 
 function isSlippery() {
@@ -614,6 +618,7 @@ function resetGame() {
   salarySurgeUntil = 0;
   emergencyCharges = 0;
   dashUntil = 0;
+  dashInvincibleUntil = 0;
   dashCooldownUntil = 0;
   dashDirection = 1;
   dashCharges = STARTING_DASH_CHARGES;
@@ -822,8 +827,10 @@ function triggerDash() {
   dashDirection = lastMoveDirection || (player.x < WIDTH / 2 ? 1 : -1);
   dashCharges -= 1;
   dashUntil = elapsed + DASH_DURATION;
+  dashInvincibleUntil = dashUntil + DASH_INVINCIBLE_AFTER;
   dashCooldownUntil = elapsed + DASH_COOLDOWN;
   addPopup("대시!", player.x, player.y - 54, "#76b7ff");
+  addPopup("무적 1초", player.x, player.y - 82, "#76b7ff");
   playTone(520, 0.08, "triangle", 0.032);
   updateScoreUi();
 }
@@ -1026,7 +1033,7 @@ function getObjectHitScale(object) {
     return 0.86;
   }
   if (isSaveMode()) {
-    return 0.58;
+    return SAVE_MODE_HIT_SCALE;
   }
   return object.type.id === "tax" ? 0.74 : 0.78;
 }
@@ -1117,6 +1124,9 @@ function drawStatusChips() {
   }
   if (elapsed < saveModeUntil) {
     chips.push(`절약모드 ${Math.ceil(saveModeUntil - elapsed)}초`);
+  }
+  if (elapsed >= dashUntil && elapsed < dashInvincibleUntil) {
+    chips.push(`대시무적 ${Math.ceil(dashInvincibleUntil - elapsed)}초`);
   }
   if (elapsed < slipUntil) {
     chips.push(`쿠폰 미끄럼 ${Math.ceil(slipUntil - elapsed)}초`);
@@ -1227,7 +1237,7 @@ function drawObject(object) {
   }
 
   if (object.type.kind !== "pickup" && isSaveMode()) {
-    ctx.scale(0.85, 0.85);
+    ctx.scale(SAVE_MODE_VISUAL_SCALE, SAVE_MODE_VISUAL_SCALE);
   }
 
   if (object.type.kind === "pickup") {
