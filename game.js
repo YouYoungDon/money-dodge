@@ -1276,18 +1276,27 @@ function drawHazardSilhouette(object) {
     ctx.stroke();
   } else {
     ctx.beginPath();
-    ctx.moveTo(-s * 0.24, -s * 0.09);
-    ctx.lineTo(s * 0.24, -s * 0.09);
-    ctx.moveTo(-s * 0.24, s * 0.09);
-    ctx.lineTo(s * 0.24, s * 0.09);
+    ctx.moveTo(-s * 0.26, -s * 0.2);
+    ctx.lineTo(s * 0.26, -s * 0.2);
     ctx.stroke();
   }
 
-  ctx.fillStyle = "#ffffff";
-  ctx.font = `900 ${Math.max(11, s * 0.18)}px sans-serif`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.fillText(isCoin ? "₩" : label, 0, 0);
+  ctx.font = `900 ${Math.max(12, s * 0.2)}px sans-serif`;
+  if (isCoin) {
+    ctx.fillStyle = "#ffffff";
+    ctx.fillText("₩", 0, 0);
+    return;
+  }
+
+  const labelWidth = Math.min(s * 0.78, ctx.measureText(label).width + s * 0.24);
+  const labelHeight = Math.max(18, s * 0.28);
+  ctx.fillStyle = "rgba(255, 255, 255, 0.92)";
+  roundRect(-labelWidth / 2, -labelHeight / 2, labelWidth, labelHeight, 8);
+  ctx.fill();
+  ctx.fillStyle = "#111111";
+  ctx.fillText(label, 0, 0);
 }
 
 function getPickupStyle(id) {
