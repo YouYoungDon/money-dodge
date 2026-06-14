@@ -5,6 +5,7 @@
 Avoid spending temptations, collect real saving items, and keep the stick figure's balance alive for as long as possible. Survival time is saved as the high score in `localStorage`, while saving points come from helper items and near misses. Players can set a nickname before starting, and the top 100 runs are ranked locally in the browser.
 
 Visual rule: black falling objects are danger. Green, blue, and red tokens are collectibles with different effects.
+The rare red `투자대박` token clears every falling object on screen.
 
 ## Run
 

@@ -210,6 +210,18 @@ const pickupTypes = [
     value: 28,
     duration: 7,
   },
+  {
+    id: "jackpot",
+    kind: "pickup",
+    label: "투자대박",
+    color: "#f43f5e",
+    accent: "#fff2c7",
+    size: 60,
+    baseSpeed: 136,
+    weight: 0.28,
+    after: 55,
+    value: 24,
+  },
 ];
 
 let state = "ready";
@@ -846,10 +858,34 @@ function collectPickup(object) {
   } else if (object.type.id === "salary") {
     salarySurgeUntil = Math.max(salarySurgeUntil, elapsed + object.type.duration);
     addPopup("+월급! 후폭풍", object.x, object.y, "#e65f5c");
+  } else if (object.type.id === "jackpot") {
+    burstFallingObjects(object);
+    addPopup("투자대박!", object.x, object.y, "#f43f5e");
   }
 
   addPopup(`저축 +${object.type.value}`, object.x, object.y - 22, "#28303f");
   playTone(720, 0.09, "triangle", 0.035);
+}
+
+function burstFallingObjects(triggerObject) {
+  let burstCount = 0;
+
+  for (const object of objects) {
+    if (object === triggerObject || object.collected) {
+      continue;
+    }
+
+    object.collected = true;
+    burstCount += 1;
+    addPopup("펑!", object.x, object.y, "#f43f5e");
+  }
+
+  if (burstCount > 0) {
+    addPopup(`${burstCount}개 정리`, triggerObject.x, triggerObject.y - 44, "#28303f");
+  }
+
+  playTone(180, 0.08, "sawtooth", 0.035);
+  playTone(540, 0.12, "triangle", 0.03);
 }
 
 function handleHazardCollision(object) {
@@ -1197,6 +1233,9 @@ function drawHazardSilhouette(object) {
 }
 
 function getPickupStyle(id) {
+  if (id === "jackpot") {
+    return { color: "#f43f5e", label: "대박" };
+  }
   if (id === "salary") {
     return { color: "#ef4444", label: "월급" };
   }
