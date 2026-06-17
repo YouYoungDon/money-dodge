@@ -31,6 +31,8 @@ const DASH_DURATION = 0.16;
 const DASH_INVINCIBLE_AFTER = 1;
 const DASH_COOLDOWN = 1.45;
 const STARTING_DASH_CHARGES = 5;
+const DOUBLE_TAP_MS = 280;
+const DOUBLE_TAP_MAX_DISTANCE = 90;
 const SAVE_MODE_VISUAL_SCALE = 0.58;
 const SAVE_MODE_HIT_SCALE = 0.46;
 
@@ -270,6 +272,7 @@ let lastCollisionLabel = "";
 let activeDragPointerId = null;
 let dragTargetX = null;
 let lastPointerX = null;
+let lastCanvasTap = null;
 let lastMoveDirection = 1;
 let invincibleUntil = 0;
 let slowUntil = 0;
@@ -471,6 +474,14 @@ function getCanvasPointerX(event) {
   return ((event.clientX - rect.left) / rect.width) * WIDTH;
 }
 
+function getCanvasPointerPoint(event) {
+  const rect = canvas.getBoundingClientRect();
+  return {
+    x: ((event.clientX - rect.left) / rect.width) * WIDTH,
+    y: ((event.clientY - rect.top) / rect.height) * HEIGHT,
+  };
+}
+
 function movePlayerToPointer(event) {
   const nextX = getCanvasPointerX(event);
   if (lastPointerX !== null && Math.abs(nextX - lastPointerX) > 1) {
@@ -517,6 +528,10 @@ function updateScoreUi() {
   scoreEl.textContent = formatSeconds(elapsed);
   savingsEl.textContent = `${savingsScore}점`;
   bestScoreEl.textContent = formatSeconds(bestScore);
+
+  if (!dashButton) {
+    return;
+  }
 
   if (state !== "playing") {
     dashButton.disabled = false;
@@ -586,7 +601,7 @@ function showOverlay(mode) {
   overlayKicker.textContent = "월급날 생존 챌린지";
   overlayTitle.textContent = `${getDifficultyProfile().label} 모드로 잔고를 지켜요!`;
   overlayText.textContent =
-    `소비 유혹은 피하고, 대시는 기본 ${STARTING_DASH_CHARGES}번! 파란 대시 토큰을 먹으면 계속 충전돼요.`;
+    `드래그로 움직이고, 왼쪽/오른쪽을 더블탭하면 그 방향으로 대시해요. 대시는 기본 ${STARTING_DASH_CHARGES}번!`;
   startButton.textContent = "시작하기";
   updateScoreUi();
 }
@@ -611,6 +626,7 @@ function resetGame() {
   activeDragPointerId = null;
   dragTargetX = null;
   lastPointerX = null;
+  lastCanvasTap = null;
   invincibleUntil = 0;
   slowUntil = 0;
   slipUntil = 0;
@@ -819,12 +835,13 @@ function spawnWave() {
   }
 }
 
-function triggerDash() {
+function triggerDash(forcedDirection = null) {
   if (state !== "playing" || elapsed < dashCooldownUntil || dashCharges <= 0) {
     return;
   }
 
-  dashDirection = lastMoveDirection || (player.x < WIDTH / 2 ? 1 : -1);
+  dashDirection = forcedDirection ?? lastMoveDirection ?? (player.x < WIDTH / 2 ? 1 : -1);
+  lastMoveDirection = dashDirection;
   dashCharges -= 1;
   dashUntil = elapsed + DASH_DURATION;
   dashInvincibleUntil = dashUntil + DASH_INVINCIBLE_AFTER;
@@ -1718,6 +1735,10 @@ window.addEventListener("blur", () => {
 });
 
 function bindHoldButton(button, direction) {
+  if (!button) {
+    return;
+  }
+
   button.addEventListener("pointerdown", (event) => {
     event.preventDefault();
     button.setPointerCapture(event.pointerId);
@@ -1735,6 +1756,31 @@ canvas.addEventListener("pointerdown", (event) => {
   }
 
   event.preventDefault();
+  const point = getCanvasPointerPoint(event);
+  const sideDirection = point.x < WIDTH / 2 ? -1 : 1;
+  const now = performance.now();
+  const previousTap = lastCanvasTap;
+
+  if (
+    previousTap !== null &&
+    now - previousTap.at <= DOUBLE_TAP_MS &&
+    previousTap.direction === sideDirection &&
+    Math.hypot(point.x - previousTap.x, point.y - previousTap.y) <= DOUBLE_TAP_MAX_DISTANCE
+  ) {
+    lastCanvasTap = null;
+    activeDragPointerId = null;
+    lastPointerX = null;
+    dragTargetX = null;
+    triggerDash(sideDirection);
+    return;
+  }
+
+  lastCanvasTap = {
+    at: now,
+    x: point.x,
+    y: point.y,
+    direction: sideDirection,
+  };
   activeDragPointerId = event.pointerId;
   canvas.setPointerCapture(event.pointerId);
   movePlayerToPointer(event);
@@ -1746,6 +1792,12 @@ canvas.addEventListener("pointermove", (event) => {
   }
 
   event.preventDefault();
+  if (lastCanvasTap !== null) {
+    const point = getCanvasPointerPoint(event);
+    if (Math.hypot(point.x - lastCanvasTap.x, point.y - lastCanvasTap.y) > DOUBLE_TAP_MAX_DISTANCE) {
+      lastCanvasTap = null;
+    }
+  }
   movePlayerToPointer(event);
 });
 
@@ -1761,7 +1813,7 @@ canvas.addEventListener("pointercancel", endCanvasDrag);
 canvas.addEventListener("lostpointercapture", endCanvasDrag);
 
 startButton.addEventListener("click", resetGame);
-dashButton.addEventListener("click", triggerDash);
+dashButton?.addEventListener("click", () => triggerDash());
 bindHoldButton(leftButton, "left");
 bindHoldButton(rightButton, "right");
 

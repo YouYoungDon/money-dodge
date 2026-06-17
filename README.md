@@ -13,10 +13,10 @@ Open `index.html` in a browser.
 
 ## Controls
 
-- Move left: `←` or `A`
-- Move right: `→` or `D`
-- Mobile/touch: drag your finger across the play area
-- Dash: `Space`, `Shift`, or the dash button. You start with 5 dashes, then collect blue dash tokens to stock up with no cap.
+- Mobile/touch: drag your finger across the play area to move
+- Mobile dash: double-tap the left or right side of the play area to dash that way
+- Keyboard move: `←` / `→` or `A` / `D`
+- Keyboard dash: `Space` or `Shift`. You start with 5 dashes, then collect blue dash tokens to stock up with no cap.
 
 ## Difficulty
 

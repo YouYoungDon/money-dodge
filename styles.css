@@ -347,10 +347,6 @@ canvas:active {
 }
 
 .bottom-bar {
-  display: grid;
-  grid-template-columns: 82px 1fr 82px 76px;
-  align-items: center;
-  gap: 10px;
   padding: 14px 18px 18px;
 }
 
@@ -424,7 +420,6 @@ canvas:active {
   }
 
   .bottom-bar {
-    grid-template-columns: 64px 1fr 64px 58px;
     padding: 12px 10px 14px;
   }
 
