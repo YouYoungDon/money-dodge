@@ -9,9 +9,7 @@ const overlayKicker = document.querySelector("#overlayKicker");
 const overlayTitle = document.querySelector("#overlayTitle");
 const overlayText = document.querySelector("#overlayText");
 const startButton = document.querySelector("#startButton");
-const leftButton = document.querySelector("#leftButton");
-const rightButton = document.querySelector("#rightButton");
-const dashButton = document.querySelector("#dashButton");
+const dashStatusEl = document.querySelector("#dashStatus");
 const nicknameInput = document.querySelector("#nicknameInput");
 const difficultyButtons = Array.from(document.querySelectorAll(".difficulty-button"));
 const leaderboardList = document.querySelector("#leaderboardList");
@@ -33,6 +31,7 @@ const DASH_COOLDOWN = 1.45;
 const STARTING_DASH_CHARGES = 5;
 const DOUBLE_TAP_MS = 280;
 const DOUBLE_TAP_MAX_DISTANCE = 90;
+const DRAG_START_DISTANCE = 10;
 const SAVE_MODE_VISUAL_SCALE = 0.58;
 const SAVE_MODE_HIT_SCALE = 0.46;
 
@@ -271,6 +270,8 @@ let lastCollisionLabel = "";
 
 let activeDragPointerId = null;
 let dragTargetX = null;
+let dragStartPoint = null;
+let isDraggingPlayer = false;
 let lastPointerX = null;
 let lastCanvasTap = null;
 let lastMoveDirection = 1;
@@ -529,22 +530,13 @@ function updateScoreUi() {
   savingsEl.textContent = `${savingsScore}점`;
   bestScoreEl.textContent = formatSeconds(bestScore);
 
-  if (!dashButton) {
-    return;
+  if (dashStatusEl) {
+    const cooldown = Math.max(0, dashCooldownUntil - elapsed);
+    dashStatusEl.textContent =
+      state === "playing" && cooldown > 0
+        ? `${dashCharges} · ${cooldown.toFixed(1)}`
+        : String(state === "playing" ? dashCharges : STARTING_DASH_CHARGES);
   }
-
-  if (state !== "playing") {
-    dashButton.disabled = false;
-    dashButton.textContent = `대시 ${STARTING_DASH_CHARGES}`;
-    return;
-  }
-
-  const cooldown = Math.max(0, dashCooldownUntil - elapsed);
-  dashButton.disabled = cooldown > 0 || dashCharges <= 0;
-  dashButton.textContent =
-    cooldown > 0
-      ? `대시 ${dashCharges} · ${cooldown.toFixed(1)}`
-      : `대시 ${dashCharges}`;
 }
 
 function getGrade() {
@@ -625,6 +617,8 @@ function resetGame() {
   lastCollisionLabel = "";
   activeDragPointerId = null;
   dragTargetX = null;
+  dragStartPoint = null;
+  isDraggingPlayer = false;
   lastPointerX = null;
   lastCanvasTap = null;
   invincibleUntil = 0;
@@ -1734,22 +1728,6 @@ window.addEventListener("blur", () => {
   keys.right = false;
 });
 
-function bindHoldButton(button, direction) {
-  if (!button) {
-    return;
-  }
-
-  button.addEventListener("pointerdown", (event) => {
-    event.preventDefault();
-    button.setPointerCapture(event.pointerId);
-    dragTargetX = null;
-    setMove(direction, true);
-  });
-  button.addEventListener("pointerup", () => setMove(direction, false));
-  button.addEventListener("pointercancel", () => setMove(direction, false));
-  button.addEventListener("lostpointercapture", () => setMove(direction, false));
-}
-
 canvas.addEventListener("pointerdown", (event) => {
   if (state !== "playing") {
     return;
@@ -1769,6 +1747,8 @@ canvas.addEventListener("pointerdown", (event) => {
   ) {
     lastCanvasTap = null;
     activeDragPointerId = null;
+    dragStartPoint = null;
+    isDraggingPlayer = false;
     lastPointerX = null;
     dragTargetX = null;
     triggerDash(sideDirection);
@@ -1782,8 +1762,9 @@ canvas.addEventListener("pointerdown", (event) => {
     direction: sideDirection,
   };
   activeDragPointerId = event.pointerId;
+  dragStartPoint = point;
+  isDraggingPlayer = false;
   canvas.setPointerCapture(event.pointerId);
-  movePlayerToPointer(event);
 });
 
 canvas.addEventListener("pointermove", (event) => {
@@ -1792,18 +1773,32 @@ canvas.addEventListener("pointermove", (event) => {
   }
 
   event.preventDefault();
+  const point = getCanvasPointerPoint(event);
+
   if (lastCanvasTap !== null) {
-    const point = getCanvasPointerPoint(event);
     if (Math.hypot(point.x - lastCanvasTap.x, point.y - lastCanvasTap.y) > DOUBLE_TAP_MAX_DISTANCE) {
       lastCanvasTap = null;
     }
   }
-  movePlayerToPointer(event);
+
+  if (
+    !isDraggingPlayer &&
+    dragStartPoint !== null &&
+    Math.hypot(point.x - dragStartPoint.x, point.y - dragStartPoint.y) >= DRAG_START_DISTANCE
+  ) {
+    isDraggingPlayer = true;
+  }
+
+  if (isDraggingPlayer) {
+    movePlayerToPointer(event);
+  }
 });
 
 function endCanvasDrag(event) {
   if (event.pointerId === activeDragPointerId) {
     activeDragPointerId = null;
+    dragStartPoint = null;
+    isDraggingPlayer = false;
     lastPointerX = null;
   }
 }
@@ -1813,9 +1808,6 @@ canvas.addEventListener("pointercancel", endCanvasDrag);
 canvas.addEventListener("lostpointercapture", endCanvasDrag);
 
 startButton.addEventListener("click", resetGame);
-dashButton?.addEventListener("click", () => triggerDash());
-bindHoldButton(leftButton, "left");
-bindHoldButton(rightButton, "right");
 
 nicknameInput.value = playerName;
 nicknameInput.addEventListener("input", () => {
