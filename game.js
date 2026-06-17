@@ -260,9 +260,9 @@ let objects = [];
 let popups = [];
 let savingsScore = 0;
 let nearMissCount = 0;
-let bestScore = Number(localStorage.getItem(HIGH_SCORE_KEY) || 0);
-let playerName = normalizeName(localStorage.getItem(PLAYER_NAME_KEY) || "절약러");
-let selectedDifficulty = normalizeDifficulty(localStorage.getItem(DIFFICULTY_KEY));
+let bestScore = Number(readStoredValue(HIGH_SCORE_KEY, "0"));
+let playerName = normalizeName(readStoredValue(PLAYER_NAME_KEY, "절약러"));
+let selectedDifficulty = normalizeDifficulty(readStoredValue(DIFFICULTY_KEY, "normal"));
 let leaderboard = loadLeaderboard();
 let latestLeaderboardId = null;
 let lastRunWasRecord = false;
@@ -306,13 +306,30 @@ function normalizeDifficulty(difficulty) {
   return difficultyProfiles[difficulty] ? difficulty : "normal";
 }
 
+function readStoredValue(key, fallback = "") {
+  try {
+    return localStorage.getItem(key) ?? fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function writeStoredValue(key, value) {
+  try {
+    localStorage.setItem(key, value);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function getDifficultyProfile() {
   return difficultyProfiles[selectedDifficulty];
 }
 
 function setDifficulty(difficulty) {
   selectedDifficulty = normalizeDifficulty(difficulty);
-  localStorage.setItem(DIFFICULTY_KEY, selectedDifficulty);
+  writeStoredValue(DIFFICULTY_KEY, selectedDifficulty);
   renderDifficultyButtons();
 }
 
@@ -326,7 +343,7 @@ function renderDifficultyButtons() {
 
 function loadLeaderboard() {
   try {
-    const parsed = JSON.parse(localStorage.getItem(LEADERBOARD_KEY) || "[]");
+    const parsed = JSON.parse(readStoredValue(LEADERBOARD_KEY, "[]"));
     if (!Array.isArray(parsed)) {
       return [];
     }
@@ -349,7 +366,7 @@ function loadLeaderboard() {
 }
 
 function saveLeaderboard() {
-  localStorage.setItem(LEADERBOARD_KEY, JSON.stringify(leaderboard));
+  writeStoredValue(LEADERBOARD_KEY, JSON.stringify(leaderboard));
 }
 
 function compareLeaderboardEntries(a, b) {
@@ -647,7 +664,7 @@ function finishGame(label) {
   lastRunWasRecord = elapsed > bestScore;
   if (lastRunWasRecord) {
     bestScore = elapsed;
-    localStorage.setItem(HIGH_SCORE_KEY, String(bestScore));
+    writeStoredValue(HIGH_SCORE_KEY, String(bestScore));
   }
   recordLeaderboardEntry();
   updateScoreUi();
@@ -1677,8 +1694,18 @@ function setMove(direction, isPressed) {
   }
 }
 
+function isEditableTarget(target) {
+  return (
+    target instanceof HTMLInputElement ||
+    target instanceof HTMLTextAreaElement ||
+    target instanceof HTMLSelectElement ||
+    target instanceof HTMLButtonElement ||
+    target?.isContentEditable
+  );
+}
+
 window.addEventListener("keydown", (event) => {
-  if (event.target === nicknameInput) {
+  if (isEditableTarget(event.target)) {
     return;
   }
 
@@ -1764,7 +1791,11 @@ canvas.addEventListener("pointerdown", (event) => {
   activeDragPointerId = event.pointerId;
   dragStartPoint = point;
   isDraggingPlayer = false;
-  canvas.setPointerCapture(event.pointerId);
+  try {
+    canvas.setPointerCapture(event.pointerId);
+  } catch {
+    // Some embedded mobile browsers do not allow pointer capture.
+  }
 });
 
 canvas.addEventListener("pointermove", (event) => {
@@ -1812,7 +1843,7 @@ startButton.addEventListener("click", resetGame);
 nicknameInput.value = playerName;
 nicknameInput.addEventListener("input", () => {
   playerName = normalizeName(nicknameInput.value);
-  localStorage.setItem(PLAYER_NAME_KEY, playerName);
+  writeStoredValue(PLAYER_NAME_KEY, playerName);
 });
 nicknameInput.addEventListener("blur", () => {
   nicknameInput.value = playerName;
@@ -1824,6 +1855,10 @@ difficultyButtons.forEach((button) => {
 renderDifficultyButtons();
 
 clearLeaderboardButton.addEventListener("click", () => {
+  if (!confirm("저장된 순위 100개를 모두 지울까요?")) {
+    return;
+  }
+
   leaderboard = [];
   latestLeaderboardId = null;
   saveLeaderboard();
