@@ -1,23 +1,30 @@
 # DonPihagi
 
-**돈피하기** is a tiny browser arcade game inspired by classic falling-object dodge games.
+**돈피하기**는 떨어지는 지출 카드를 피하고 저축 아이템을 모으는 모바일 중심 브라우저 게임입니다.
 
-Avoid spending temptations, collect real saving items, and keep the stick figure's balance alive for as long as possible. Survival time is saved as the high score in `localStorage`, while saving points come from helper items and near misses. Players can set a nickname before starting, and the top 100 runs are ranked locally in the browser.
-
-Visual rule: black falling objects are danger. Green, blue, and red tokens are collectibles with different effects.
-The rare red `투자대박` token clears every falling object on screen.
+생존 시간, 저축 점수, 근접 회피 횟수로 기록을 매기며 브라우저 `localStorage`에 Top 100 랭킹을 저장합니다. 닉네임과 난이도, 진동 설정도 브라우저에 저장됩니다.
 
 ## Run
 
-Open `index.html` in a browser.
+정적 파일만으로 실행됩니다.
+
+- 간단 확인: `index.html`을 브라우저에서 열기
+- PWA/서비스워커 확인: 로컬 서버로 실행 후 접속
 
 ## Controls
 
-- Mobile/touch: drag your finger across the play area to move
-- Mobile dash: double-tap the left or right side of the play area to dash that way
-- Keyboard move: `←` / `→` or `A` / `D`
-- Keyboard dash: `Space` or `Shift`. You start with 5 dashes, then collect blue dash tokens to stock up with no cap.
+- 모바일 이동: 플레이 화면을 좌우로 드래그
+- 모바일 대시: 플레이 화면의 왼쪽 또는 오른쪽을 더블탭
+- 키보드 이동: `←` / `→` 또는 `A` / `D`
+- 키보드 대시: `Space` 또는 `Shift`
 
-## Difficulty
+## Items
 
-Choose `쉬움`, `보통`, or `어려움` before starting. Easier modes slow hazards and give helper items more often; harder modes do the opposite.
+- 절약모드: 위험 카드의 표시와 충돌 판정을 잠시 작게 만듭니다.
+- 대시: 대시 횟수를 1개 추가합니다.
+- 비상금: 위험 카드에 닿았을 때 1회 방어합니다.
+- 투자대박: 화면에 내려오는 모든 물체를 터뜨립니다.
+
+## PWA
+
+`manifest.webmanifest`, `icon.svg`, `sw.js`가 포함되어 있어 HTTPS 또는 로컬 서버 환경에서 홈 화면 설치와 기본 오프라인 캐시를 사용할 수 있습니다.

@@ -1,0 +1,19 @@
+{
+  "name": "돈피하기",
+  "short_name": "돈피하기",
+  "description": "지출 폭탄을 피하고 저축 아이템을 모으는 모바일 웹게임",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#fff8e8",
+  "theme_color": "#fff8e8",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

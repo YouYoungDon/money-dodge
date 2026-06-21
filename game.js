@@ -8,12 +8,14 @@ const overlay = document.querySelector("#overlay");
 const overlayKicker = document.querySelector("#overlayKicker");
 const overlayTitle = document.querySelector("#overlayTitle");
 const overlayText = document.querySelector("#overlayText");
+const rankSummaryEl = document.querySelector("#rankSummary");
 const startButton = document.querySelector("#startButton");
 const dashStatusEl = document.querySelector("#dashStatus");
 const nicknameInput = document.querySelector("#nicknameInput");
 const difficultyButtons = Array.from(document.querySelectorAll(".difficulty-button"));
 const leaderboardList = document.querySelector("#leaderboardList");
 const clearLeaderboardButton = document.querySelector("#clearLeaderboardButton");
+const vibrationToggle = document.querySelector("#vibrationToggle");
 
 const WIDTH = canvas.width;
 const HEIGHT = canvas.height;
@@ -22,6 +24,7 @@ const HIGH_SCORE_KEY = "donpihagi.highScore";
 const PLAYER_NAME_KEY = "donpihagi.playerName";
 const LEADERBOARD_KEY = "donpihagi.leaderboard";
 const DIFFICULTY_KEY = "donpihagi.difficulty";
+const VIBRATION_KEY = "donpihagi.vibration";
 const LEADERBOARD_LIMIT = 100;
 
 const DASH_SPEED = 1180;
@@ -265,8 +268,10 @@ let playerName = normalizeName(readStoredValue(PLAYER_NAME_KEY, "절약러"));
 let selectedDifficulty = normalizeDifficulty(readStoredValue(DIFFICULTY_KEY, "normal"));
 let leaderboard = loadLeaderboard();
 let latestLeaderboardId = null;
+let latestLeaderboardRank = null;
 let lastRunWasRecord = false;
 let lastCollisionLabel = "";
+let vibrationEnabled = readStoredValue(VIBRATION_KEY, "on") !== "off";
 
 let activeDragPointerId = null;
 let dragTargetX = null;
@@ -320,6 +325,18 @@ function writeStoredValue(key, value) {
     return true;
   } catch {
     return false;
+  }
+}
+
+function vibrate(pattern) {
+  if (!vibrationEnabled || !navigator.vibrate) {
+    return;
+  }
+
+  try {
+    navigator.vibrate(pattern);
+  } catch {
+    // Vibration is optional and may be blocked by the browser.
   }
 }
 
@@ -403,6 +420,7 @@ function recordLeaderboardEntry() {
   leaderboard = [...leaderboard, entry]
     .sort(compareLeaderboardEntries)
     .slice(0, LEADERBOARD_LIMIT);
+  latestLeaderboardRank = leaderboard.findIndex((rankedEntry) => rankedEntry.id === entry.id) + 1 || null;
   saveLeaderboard();
   renderLeaderboard();
 }
@@ -599,9 +617,14 @@ function showOverlay(mode) {
 
   if (mode === "gameover") {
     const isRecord = lastRunWasRecord;
+    const rankText = latestLeaderboardRank
+      ? `이번 기록 ${latestLeaderboardRank}위 · Top ${LEADERBOARD_LIMIT}`
+      : `이번 기록은 Top ${LEADERBOARD_LIMIT} 밖이에요`;
     overlayKicker.textContent = isRecord ? "신기록 달성!" : "잔고 방어 종료";
     overlayTitle.textContent = `${getGrade()} · ${formatSeconds(elapsed)}`;
     overlayText.textContent = `${lastCollisionLabel || "지출"}에 닿았어요. 저축 ${savingsScore}점, 근접 회피 ${nearMissCount}회. ${getResultLine()}`;
+    rankSummaryEl.textContent = rankText;
+    rankSummaryEl.classList.remove("hidden");
     startButton.textContent = "다시 도전";
     updateScoreUi();
     return;
@@ -611,6 +634,8 @@ function showOverlay(mode) {
   overlayTitle.textContent = `${getDifficultyProfile().label} 모드로 잔고를 지켜요!`;
   overlayText.textContent =
     `드래그로 움직이고, 왼쪽/오른쪽을 더블탭하면 그 방향으로 대시해요. 대시는 기본 ${STARTING_DASH_CHARGES}번!`;
+  rankSummaryEl.textContent = "";
+  rankSummaryEl.classList.add("hidden");
   startButton.textContent = "시작하기";
   updateScoreUi();
 }
@@ -632,6 +657,7 @@ function resetGame() {
   nearMissCount = 0;
   lastRunWasRecord = false;
   lastCollisionLabel = "";
+  latestLeaderboardRank = null;
   activeDragPointerId = null;
   dragTargetX = null;
   dragStartPoint = null;
@@ -661,6 +687,7 @@ function finishGame(label) {
   state = "gameover";
   lastCollisionLabel = label;
   playTone(132, 0.18, "sawtooth", 0.05);
+  vibrate([80, 40, 120]);
   lastRunWasRecord = elapsed > bestScore;
   if (lastRunWasRecord) {
     bestScore = elapsed;
@@ -860,6 +887,7 @@ function triggerDash(forcedDirection = null) {
   addPopup("대시!", player.x, player.y - 54, "#76b7ff");
   addPopup("무적 1초", player.x, player.y - 82, "#76b7ff");
   playTone(520, 0.08, "triangle", 0.032);
+  vibrate(18);
   updateScoreUi();
 }
 
@@ -958,6 +986,9 @@ function collectPickup(object) {
 
   addPopup(`저축 +${object.type.value}`, object.x, object.y - 22, "#28303f");
   playTone(720, 0.09, "triangle", 0.035);
+  if (object.type.id !== "jackpot") {
+    vibrate(20);
+  }
 }
 
 function burstFallingObjects(triggerObject) {
@@ -979,6 +1010,7 @@ function burstFallingObjects(triggerObject) {
 
   playTone(180, 0.08, "sawtooth", 0.035);
   playTone(540, 0.12, "triangle", 0.03);
+  vibrate([35, 25, 55]);
 }
 
 function handleHazardCollision(object) {
@@ -989,6 +1021,7 @@ function handleHazardCollision(object) {
     slipUntil = Math.max(slipUntil, elapsed + 2.7);
     addPopup("쿠폰 함정!", object.x, object.y, "#e65f5c");
     playTone(180, 0.12, "sawtooth", 0.035);
+    vibrate(45);
     return;
   }
 
@@ -1003,6 +1036,7 @@ function handleHazardCollision(object) {
     emergencyCharges -= 1;
     addPopup("비상금 사용!", object.x, object.y, "#d89022");
     playTone(360, 0.09, "triangle", 0.03);
+    vibrate([25, 20, 25]);
     return;
   }
 
@@ -1849,6 +1883,15 @@ nicknameInput.addEventListener("blur", () => {
   nicknameInput.value = playerName;
 });
 
+vibrationToggle.checked = vibrationEnabled;
+vibrationToggle.addEventListener("change", () => {
+  vibrationEnabled = vibrationToggle.checked;
+  writeStoredValue(VIBRATION_KEY, vibrationEnabled ? "on" : "off");
+  if (vibrationEnabled) {
+    vibrate(12);
+  }
+});
+
 difficultyButtons.forEach((button) => {
   button.addEventListener("click", () => setDifficulty(button.dataset.difficulty));
 });
@@ -1861,9 +1904,16 @@ clearLeaderboardButton.addEventListener("click", () => {
 
   leaderboard = [];
   latestLeaderboardId = null;
+  latestLeaderboardRank = null;
   saveLeaderboard();
   renderLeaderboard();
 });
+
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("sw.js").catch(() => {});
+  });
+}
 
 updateScoreUi();
 showOverlay("ready");
